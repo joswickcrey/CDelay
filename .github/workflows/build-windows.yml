@@ -1,0 +1,35 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download JUCE
+      run: |
+        curl -L https://github.com/juce-framework/JUCE/releases/download/8.0.4/juce-8.0.4-windows.zip -o juce.zip
+        unzip juce.zip -d JUCE_extracted
+        mv JUCE_extracted/JUCE ./JUCE
+
+    - name: Update JUCE Path
+      run: |
+        (Get-Content CMakeLists.txt) -replace 'set\(JUCE_PATH.*\)', 'set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/JUCE" CACHE PATH "Path to JUCE")' | Set-Content CMakeLists.txt
+
+    - name: Configure CMake
+      run: cmake -B build
+
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: CDelay-Windows
+        path: build/CDelay_artefacts/Release/VST3/
