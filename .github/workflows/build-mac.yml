@@ -1,0 +1,40 @@
+name: Build Mac
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download JUCE
+      run: |
+        curl -L https://github.com/juce-framework/JUCE/releases/download/8.0.4/juce-8.0.4-osx.zip -o juce.zip
+        unzip juce.zip -d JUCE_extracted
+        mv JUCE_extracted/JUCE ./JUCE
+
+    - name: Update JUCE Path
+      run: |
+        sed -i '' 's|set(JUCE_PATH.*)|set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/JUCE" CACHE PATH "Path to JUCE")|' CMakeLists.txt
+
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Find build artifacts
+      run: find build -name "*.vst3" -o -name "*.component" 2>/dev/null
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: CDelay-Mac
+        path: |
+          build/CDelay_artefacts/Release/VST3/
+          build/CDelay_artefacts/Release/AU/
