@@ -31,10 +31,21 @@ jobs:
     - name: Find build artifacts
       run: find build -name "*.vst3" -o -name "*.component" 2>/dev/null
 
-    - name: Upload Artifacts
+    - name: Zip Artifacts
+      run: |
+        cd build/CDelay_artefacts/Release/VST3
+        zip -r ../../../../CDelay-VST3.zip CDelay.vst3
+        cd ../../../../build/CDelay_artefacts/Release/AU
+        zip -r ../../../../CDelay-AU.zip CDelay.component
+
+    - name: Upload VST3
       uses: actions/upload-artifact@v4
       with:
-        name: CDelay-Mac
-        path: |
-          build/CDelay_artefacts/Release/VST3/
-          build/CDelay_artefacts/Release/AU/
+        name: CDelay-Mac-VST3
+        path: CDelay-VST3.zip
+
+    - name: Upload AU
+      uses: actions/upload-artifact@v4
+      with:
+        name: CDelay-Mac-AU
+        path: CDelay-AU.zip
