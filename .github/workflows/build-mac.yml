@@ -49,3 +49,13 @@ jobs:
       with:
         name: CDelay-Mac-AU
         path: CDelay-AU.zip
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: github.ref == 'refs/heads/main'
+      with:
+        tag_name: latest
+        name: Latest Build
+        files: |
+          CDelay-VST3.zip
+          CDelay-AU.zip

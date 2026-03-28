@@ -28,8 +28,19 @@ jobs:
     - name: Build
       run: cmake --build build --config Release
 
+    - name: Zip Artifacts
+      run: Compress-Archive -Path build/CDelay_artefacts/Release/VST3/CDelay.vst3 -DestinationPath CDelay-Windows-VST3.zip
+
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: CDelay-Windows
-        path: build/CDelay_artefacts/Release/VST3/
+        name: CDelay-Windows-VST3
+        path: CDelay-Windows-VST3.zip
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: github.ref == 'refs/heads/main'
+      with:
+        tag_name: latest
+        name: Latest Build
+        files: CDelay-Windows-VST3.zip
