@@ -14,9 +14,7 @@ jobs:
 
     - name: Download JUCE
       run: |
-        curl -L https://github.com/juce-framework/JUCE/releases/download/8.0.4/juce-8.0.4-osx.zip -o juce.zip
-        unzip juce.zip -d JUCE_extracted
-        mv JUCE_extracted/JUCE ./JUCE
+        git clone --depth 1 --branch 8.0.12 https://github.com/juce-framework/JUCE.git JUCE
 
     - name: Update JUCE Path
       run: |
