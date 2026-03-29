@@ -29,6 +29,12 @@ jobs:
     - name: Build
       run: cmake --build build --config Release
 
+    - name: Check artifact structure
+      run: |
+        ls -la build/CDelay_artefacts/Release/VST3/
+        ls -la build/CDelay_artefacts/Release/AU/
+        file build/CDelay_artefacts/Release/VST3/CDelay.vst3
+
     - name: Find build artifacts
       run: find build -name "*.vst3" -o -name "*.component" 2>/dev/null
 
