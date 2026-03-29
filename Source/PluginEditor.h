@@ -22,13 +22,9 @@ public:
     void mouseDrag(const juce::MouseEvent& e) override;
     void mouseUp(const juce::MouseEvent& e) override;
 
-    // Set how many bars are active
     void setActiveCount(int count);
-
-    // Get the value of a specific bar (0.0 to 1.0)
     float getBarValue(int index) const;
 
-    // Serialize and deserialize for state saving
     juce::String serialize() const;
     void deserialize(const juce::String& data);
 

@@ -48,34 +48,27 @@ void CDelayAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     dryWetSmoothed.setCurrentAndTargetValue(0.5f);
     outputVolumeSmoothed.setCurrentAndTargetValue(1.0f);
 
-    // Set up DSP spec for filters
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = (juce::uint32)samplesPerBlock;
     spec.numChannels = (juce::uint32)getTotalNumOutputChannels();
 
-    // Initialize all four filters
     lowPassFilterL.prepare(spec);
     lowPassFilterR.prepare(spec);
     highPassFilterL.prepare(spec);
     highPassFilterR.prepare(spec);
 
-    // Set initial filter coefficients
-    // Low pass at 20000hz = essentially no filtering at start
     *lowPassFilterL.coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 20000.0f);
     *lowPassFilterR.coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 20000.0f);
 
-    // High pass at 20hz = essentially no filtering at start
     *highPassFilterL.coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 20.0f);
     *highPassFilterR.coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 20.0f);
 
-    // Reset filters
     lowPassFilterL.reset();
     lowPassFilterR.reset();
     highPassFilterL.reset();
     highPassFilterR.reset();
 
-    // Dry filters
     dryLowPassFilterL.prepare(spec);
     dryLowPassFilterR.prepare(spec);
     dryHighPassFilterL.prepare(spec);
@@ -91,7 +84,6 @@ void CDelayAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     dryHighPassFilterL.reset();
     dryHighPassFilterR.reset();
 
-    // Initialize filter smoothing
     filterSmoothed.reset(sampleRate, 0.05);
     filterSmoothed.setCurrentAndTargetValue(0.5f);
 
@@ -111,7 +103,6 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Clear and resize wet buffer to match current block
     wetBuffer.setSize(buffer.getNumChannels(), buffer.getNumSamples(), false, true, true);
     wetBuffer.clear();
 
@@ -190,26 +181,22 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
             delayBuffer.setSample(channel, writePosition, drySample * sendAmount);
 
-            // Accumulate wet (delayed) signal
             float wetSample = 0.0f;
             for (int repeat = 1; repeat <= delayCount; ++repeat)
             {
                 int readPosition = writePosition - (repeat * smoothedDelaySamples);
 
-                // Wrap around correctly handling large values
                 if (bufferSize > 0)
                     readPosition = ((readPosition % bufferSize) + bufferSize) % bufferSize;
                 else
                     continue;
 
-                // Skip if somehow still out of bounds
                 if (readPosition < 0 || readPosition >= bufferSize)
                     continue;
 
                 float delayedSample = delayBuffer.getSample(channel, readPosition)
                     * repeatGains[repeat - 1];
 
-                // Equal power panning, -1.0 = full left, 0.0 = center, 1.0 = full right
                 float pan = panValues[repeat - 1];
                 float panAngle = (pan + 1.0f) * juce::MathConstants<float>::pi / 4.0f;
                 float leftGain = std::cos(panAngle);
@@ -219,7 +206,6 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 wetSample += delayedSample * panGain;
             }
 
-            // Write dry to output, wet to wetBuffer separately
             buffer.setSample(channel, sample, drySample * dryGain * smoothedOutput);
 
             wetBuffer.setSample(channel, sample, wetSample);
@@ -230,7 +216,6 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
     bool filterDelaysOnly = apvts.getRawParameterValue("filterDelaysOnly")->load() > 0.5f;
 
-    // Apply filter to wet signal only
     if (filterVal < 0.5f)
     {
         float t = 1.0f - (filterVal * 2.0f);
@@ -262,7 +247,6 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         }
     }
 
-    // Mix filtered wet signal into output buffer
     for (int channel = 0; channel < numChannels; ++channel)
     {
         auto* outData = buffer.getWritePointer(channel);
@@ -274,7 +258,6 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             outData[s] += wetData[s] * wetGain * outVolume;
     }
 
-    // If filter is not delays only, also apply to dry signal
     if (!filterDelaysOnly)
     {
         auto* leftData = buffer.getWritePointer(0);

@@ -41,21 +41,21 @@ jobs:
     - name: Zip Artifacts
       run: |
         cd build/CDelay_artefacts/Release/VST3
-        zip -r ../../../../CDelay-VST3.zip CDelay.vst3
+        zip -r ../../../../CDelay-Mac-VST3.zip CDelay.vst3
         cd ../../../../build/CDelay_artefacts/Release/AU
-        zip -r ../../../../CDelay-AU.zip CDelay.component
+        zip -r ../../../../CDelay-Mac-AU.zip CDelay.component
 
     - name: Upload VST3
       uses: actions/upload-artifact@v4
       with:
         name: CDelay-Mac-VST3
-        path: CDelay-VST3.zip
+        path: CDelay-Mac-VST3.zip
 
     - name: Upload AU
       uses: actions/upload-artifact@v4
       with:
         name: CDelay-Mac-AU
-        path: CDelay-AU.zip
+        path: CDelay-Mac-AU.zip
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -64,5 +64,5 @@ jobs:
         tag_name: latest
         name: Latest Build
         files: |
-          CDelay-VST3.zip
-          CDelay-AU.zip
+          CDelay-Mac-VST3.zip
+          CDelay-Mac-AU.zip
