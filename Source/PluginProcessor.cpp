@@ -12,6 +12,7 @@ CDelayAudioProcessor::CDelayAudioProcessor()
     panValues.fill(0.0f);
     feedbackValues.fill(0.0f);
     perTapFilterValues.fill(0.5f);
+    widthValues.fill(0.0f);
 }
 
 CDelayAudioProcessor::~CDelayAudioProcessor() {}
@@ -183,6 +184,7 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
     const int bufferSize = delayBuffer.getNumSamples();
+    const int maxHaasSamples = (int)(0.035f * currentSampleRate);
 
     float filterVal = 0.5f;
 
@@ -197,6 +199,7 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         int smoothedDelaySamples = (int)delayTimeSmoothed.getNextValue();
         int swingOffsetSamples   = (int)(swingAmount * (float)smoothedDelaySamples * 0.5f);
 
+        // Feedback + dry write (channel-first)
         for (int channel = 0; channel < numChannels; ++channel)
         {
             float drySample = buffer.getSample(channel, sample) * smoothedInput;
@@ -214,70 +217,80 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             }
 
             delayBuffer.setSample(channel, writePosition, drySample * sendAmount + feedbackSample);
+            buffer.setSample(channel, sample, drySample * dryGain * smoothedOutput);
+        }
 
-            float wetSample = 0.0f;
-            for (int repeat = 1; repeat <= delayCount; ++repeat)
+        // Wet output (tap-first so width can operate on L+R simultaneously)
+        float wetL = 0.0f, wetR = 0.0f;
+        for (int repeat = 1; repeat <= delayCount; ++repeat)
+        {
+            int readPosition = writePosition - (repeat * smoothedDelaySamples);
+            if (repeat % 2 == 0)
+                readPosition -= swingOffsetSamples;
+
+            if (bufferSize > 0)
+                readPosition = ((readPosition % bufferSize) + bufferSize) % bufferSize;
+            else
+                continue;
+
+            if (readPosition < 0 || readPosition >= bufferSize)
+                continue;
+
+            // Per-tap stereo width: up = Haas wider, down = collapse to mono
+            float widthVal = widthValues[repeat - 1]; // -1 to 1, 0 = no change
+            int readPosL = readPosition;
+            int readPosR = readPosition;
+            if (numChannels > 1 && widthVal < 0.0f)
             {
-                int readPosition = writePosition - (repeat * smoothedDelaySamples);
-                if (repeat % 2 == 0)
-                    readPosition -= swingOffsetSamples;
-
-                if (bufferSize > 0)
-                    readPosition = ((readPosition % bufferSize) + bufferSize) % bufferSize;
-                else
-                    continue;
-
-                if (readPosition < 0 || readPosition >= bufferSize)
-                    continue;
-
-                float delayedSample = delayBuffer.getSample(channel, readPosition)
-                    * repeatGains[repeat - 1];
-
-                float tapFilterVal = perTapFilterValues[repeat - 1];
-                if (tapFilterVal < 0.49f)
-                {
-                    float t = 1.0f - (tapFilterVal * 2.0f);
-                    float cutoff = juce::jmax(20.0f, 20000.0f * std::pow(200.0f / 20000.0f, t));
-                    if (channel == 0)
-                    {
-                        *tapLowPassFilterL[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff);
-                        delayedSample = tapLowPassFilterL[repeat - 1].processSample(delayedSample);
-                    }
-                    else
-                    {
-                        *tapLowPassFilterR[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff);
-                        delayedSample = tapLowPassFilterR[repeat - 1].processSample(delayedSample);
-                    }
-                }
-                else if (tapFilterVal > 0.51f)
-                {
-                    float t = (tapFilterVal - 0.5f) * 2.0f;
-                    float cutoff = juce::jmin(20000.0f, 20.0f * std::pow(20000.0f / 20.0f, t));
-                    if (channel == 0)
-                    {
-                        *tapHighPassFilterL[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, cutoff);
-                        delayedSample = tapHighPassFilterL[repeat - 1].processSample(delayedSample);
-                    }
-                    else
-                    {
-                        *tapHighPassFilterR[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, cutoff);
-                        delayedSample = tapHighPassFilterR[repeat - 1].processSample(delayedSample);
-                    }
-                }
-
-                float pan = panValues[repeat - 1];
-                float panAngle = (pan + 1.0f) * juce::MathConstants<float>::pi / 4.0f;
-                float leftGain = std::cos(panAngle);
-                float rightGain = std::sin(panAngle);
-                float panGain = (channel == 0) ? leftGain : rightGain;
-
-                wetSample += delayedSample * panGain;
+                int haasOffset = (int)(-widthVal * (float)maxHaasSamples);
+                readPosR = (readPosR - haasOffset + bufferSize) % bufferSize;
             }
 
-            buffer.setSample(channel, sample, drySample * dryGain * smoothedOutput);
+            float tapL = delayBuffer.getSample(0, readPosL) * repeatGains[repeat - 1];
+            float tapR = (numChannels > 1) ? delayBuffer.getSample(1, readPosR) * repeatGains[repeat - 1] : tapL;
 
-            wetBuffer.setSample(channel, sample, wetSample);
+            // Per-tap filter
+            float tapFilterVal = perTapFilterValues[repeat - 1];
+            if (tapFilterVal < 0.49f)
+            {
+                float t = 1.0f - (tapFilterVal * 2.0f);
+                float cutoff = juce::jmax(20.0f, 20000.0f * std::pow(200.0f / 20000.0f, t));
+                *tapLowPassFilterL[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff);
+                *tapLowPassFilterR[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff);
+                tapL = tapLowPassFilterL[repeat - 1].processSample(tapL);
+                tapR = tapLowPassFilterR[repeat - 1].processSample(tapR);
+            }
+            else if (tapFilterVal > 0.51f)
+            {
+                float t = (tapFilterVal - 0.5f) * 2.0f;
+                float cutoff = juce::jmin(20000.0f, 20.0f * std::pow(20000.0f / 20.0f, t));
+                *tapHighPassFilterL[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, cutoff);
+                *tapHighPassFilterR[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, cutoff);
+                tapL = tapHighPassFilterL[repeat - 1].processSample(tapL);
+                tapR = tapHighPassFilterR[repeat - 1].processSample(tapR);
+            }
+
+            // Pan
+            float pan = panValues[repeat - 1];
+            float panAngle = (pan + 1.0f) * juce::MathConstants<float>::pi / 4.0f;
+            tapL *= std::cos(panAngle);
+            tapR *= std::sin(panAngle);
+
+            // Positive width (down): blend toward mono
+            if (numChannels > 1 && widthVal > 0.0f)
+            {
+                float monoBlend = widthVal; // 0 to 1
+                float M = (tapL + tapR) * 0.5f;
+                tapL += (M - tapL) * monoBlend;
+                tapR += (M - tapR) * monoBlend;
+            }
+
+            wetL += tapL;
+            wetR += tapR;
         }
+
+        wetBuffer.setSample(0, sample, wetL);
+        if (numChannels > 1) wetBuffer.setSample(1, sample, wetR);
 
         writePosition = (writePosition + 1) % bufferSize;
     }
@@ -392,6 +405,16 @@ void CDelayAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     }
     panXml->setAttribute("data", panData);
 
+    auto* widthXml = graphXml->createNewChildElement("WidthBars");
+    juce::String widthData;
+    for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+    {
+        widthData += juce::String(widthValues[i]);
+        if (i < MAX_DELAY_COUNT - 1)
+            widthData += ",";
+    }
+    widthXml->setAttribute("data", widthData);
+
     auto* tapFilterXml = graphXml->createNewChildElement("TapFilterBars");
     juce::String tapFilterData;
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
@@ -441,6 +464,14 @@ void CDelayAudioProcessor::setStateInformation(const void* data, int sizeInBytes
                 panXml->getStringAttribute("data"), ",", "");
             for (int i = 0; i < juce::jmin((int)tokens.size(), MAX_DELAY_COUNT); ++i)
                 panValues[i] = juce::jlimit(-1.0f, 1.0f, tokens[i].getFloatValue());
+        }
+
+        if (auto* widthXml = xmlState->getChildByName("WidthBars"))
+        {
+            auto tokens = juce::StringArray::fromTokens(
+                widthXml->getStringAttribute("data"), ",", "");
+            for (int i = 0; i < juce::jmin((int)tokens.size(), MAX_DELAY_COUNT); ++i)
+                widthValues[i] = juce::jlimit(-1.0f, 1.0f, tokens[i].getFloatValue());
         }
 
         if (auto* tapFilterXml = xmlState->getChildByName("TapFilterBars"))

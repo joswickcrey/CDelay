@@ -164,7 +164,7 @@ void PanBarGraph::paint(juce::Graphics& g)
 
     g.setColour(juce::Colours::white);
     g.setFont(12.0f);
-    g.drawText("Pan", 4, 0, 60, 16, juce::Justification::centredLeft, false);
+    g.drawText(label, 4, 0, 60, 16, juce::Justification::centredLeft, false);
 
     g.setColour(juce::Colour(80, 80, 80));
     g.drawRect(getLocalBounds(), 1);
@@ -198,6 +198,12 @@ void PanBarGraph::paint(juce::Graphics& g)
 }
 
 void PanBarGraph::resized() {}
+
+void PanBarGraph::setLabel(const juce::String& text)
+{
+    label = text;
+    repaint();
+}
 
 void PanBarGraph::mouseDown(const juce::MouseEvent& e)
 {
@@ -304,16 +310,19 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
         audioProcessor.apvts, "filterDelaysOnly", filterDelaysOnlyButton);
 
     feedbackBarGraph.setLabel("Feedback");
+    widthBarGraph.setLabel   ("Width");
 
     addAndMakeVisible(noteDivisionLabel);
     addAndMakeVisible(volumeBarGraph);
     addAndMakeVisible(panBarGraph);
     addAndMakeVisible(feedbackBarGraph);
     addAndMakeVisible(perTapFilterGraph);
+    addAndMakeVisible(widthBarGraph);
     addAndMakeVisible(volumeTab);
     addAndMakeVisible(panTab);
     addAndMakeVisible(feedbackTab);
     addAndMakeVisible(tapFilterTab);
+    addAndMakeVisible(widthTab);
 
     auto showOnly = [this](int tab)
     {
@@ -322,6 +331,7 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
         panBarGraph.setVisible      (tab == 1);
         feedbackBarGraph.setVisible (tab == 2);
         perTapFilterGraph.setVisible(tab == 3);
+        widthBarGraph.setVisible    (tab == 4);
         updateTabAppearance();
     };
 
@@ -329,6 +339,7 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
     panTab.onClick       = [showOnly]() { showOnly(1); };
     feedbackTab.onClick  = [showOnly]() { showOnly(2); };
     tapFilterTab.onClick = [showOnly]() { showOnly(3); };
+    widthTab.onClick     = [showOnly]() { showOnly(4); };
 
     showOnly(0);
 
@@ -402,6 +413,7 @@ void CDelayAudioProcessorEditor::resized()
     panTab.setBounds        (94,  graphTop, 80, tabH);
     feedbackTab.setBounds   (178, graphTop, 80, tabH);
     tapFilterTab.setBounds  (262, graphTop, 80, tabH);
+    widthTab.setBounds      (346, graphTop, 80, tabH);
 
     int graphAreaTop = graphTop + tabH + 4;
     int graphHeight  = getHeight() - graphAreaTop - 10;
@@ -410,6 +422,7 @@ void CDelayAudioProcessorEditor::resized()
     panBarGraph.setBounds      (10, graphAreaTop, getWidth() - 20, graphHeight);
     feedbackBarGraph.setBounds (10, graphAreaTop, getWidth() - 20, graphHeight);
     perTapFilterGraph.setBounds(10, graphAreaTop, getWidth() - 20, graphHeight);
+    widthBarGraph.setBounds    (10, graphAreaTop, getWidth() - 20, graphHeight);
 }
 
 void CDelayAudioProcessorEditor::timerCallback()
@@ -453,6 +466,15 @@ void CDelayAudioProcessorEditor::timerCallback()
         }
         perTapFilterGraph.deserialize(tapFilterData);
 
+        juce::String widthData;
+        for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+        {
+            widthData += juce::String(audioProcessor.widthValues[i]); // already -1 to 1
+            if (i < MAX_DELAY_COUNT - 1)
+                widthData += ",";
+        }
+        widthBarGraph.deserialize(widthData);
+
         bool initBpmSync = audioProcessor.apvts.getRawParameterValue("bpmSync")->load() > 0.5f;
         wasBpmSync = initBpmSync;
         if (initBpmSync)
@@ -476,6 +498,7 @@ void CDelayAudioProcessorEditor::timerCallback()
     panBarGraph.setActiveCount(count);
     feedbackBarGraph.setActiveCount(count);
     perTapFilterGraph.setActiveCount(count);
+    widthBarGraph.setActiveCount(count);
 
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
     {
@@ -483,6 +506,7 @@ void CDelayAudioProcessorEditor::timerCallback()
         audioProcessor.panValues[i]          = panBarGraph.getBarValue(i);
         audioProcessor.feedbackValues[i]     = feedbackBarGraph.getBarValue(i);
         audioProcessor.perTapFilterValues[i] = (1.0f - perTapFilterGraph.getBarValue(i)) * 0.5f;
+        audioProcessor.widthValues[i]         = widthBarGraph.getBarValue(i);
     }
 
     for (int i = 0; i < count; ++i)
@@ -533,8 +557,9 @@ void CDelayAudioProcessorEditor::updateTabAppearance()
     auto activeColour   = juce::Colour(70, 130, 180);
     auto inactiveColour = juce::Colour(50, 50, 55);
 
-    volumeTab.setColour     (juce::TextButton::buttonColourId, activeTab == 0 ? activeColour : inactiveColour);
-    panTab.setColour        (juce::TextButton::buttonColourId, activeTab == 1 ? activeColour : inactiveColour);
-    feedbackTab.setColour   (juce::TextButton::buttonColourId, activeTab == 2 ? activeColour : inactiveColour);
-    tapFilterTab.setColour  (juce::TextButton::buttonColourId, activeTab == 3 ? activeColour : inactiveColour);
+    volumeTab.setColour   (juce::TextButton::buttonColourId, activeTab == 0 ? activeColour : inactiveColour);
+    panTab.setColour      (juce::TextButton::buttonColourId, activeTab == 1 ? activeColour : inactiveColour);
+    feedbackTab.setColour (juce::TextButton::buttonColourId, activeTab == 2 ? activeColour : inactiveColour);
+    tapFilterTab.setColour(juce::TextButton::buttonColourId, activeTab == 3 ? activeColour : inactiveColour);
+    widthTab.setColour    (juce::TextButton::buttonColourId, activeTab == 4 ? activeColour : inactiveColour);
 }

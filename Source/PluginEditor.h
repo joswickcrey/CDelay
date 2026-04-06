@@ -55,6 +55,7 @@ public:
 
     void setActiveCount(int count);
     float getBarValue(int index) const;
+    void setLabel(const juce::String& text);
 
     juce::String serialize() const;
     void deserialize(const juce::String& data);
@@ -63,6 +64,7 @@ private:
     std::array<float, MAX_DELAY_COUNT> values;
     int activeCount = 4;
     int draggedBar = -1;
+    juce::String label = "Pan";
 
     int getBarIndexAt(juce::Point<float> pos) const;
 
@@ -118,6 +120,7 @@ private:
     PanBarGraph    panBarGraph;
     VolumeBarGraph feedbackBarGraph;
     PanBarGraph    perTapFilterGraph;
+    PanBarGraph    widthBarGraph;
     bool stateLoaded = false;
 
     juce::ToggleButton filterDelaysOnlyButton;
@@ -137,6 +140,7 @@ private:
     juce::TextButton panTab         { "Pan" };
     juce::TextButton feedbackTab    { "Feedback" };
     juce::TextButton tapFilterTab   { "Filter" };
+    juce::TextButton widthTab       { "Width" };
     int activeTab = 0;
     void updateTabAppearance();
 

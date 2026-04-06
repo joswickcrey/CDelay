@@ -41,6 +41,7 @@ public:
     std::array<float, MAX_DELAY_COUNT> panValues;
     std::array<float, MAX_DELAY_COUNT> feedbackValues;
     std::array<float, MAX_DELAY_COUNT> perTapFilterValues;
+    std::array<float, MAX_DELAY_COUNT> widthValues;
 
     float lastMsValue = 500.0f;
     float lastDivisionValue = 4.0f;
