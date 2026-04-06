@@ -237,7 +237,7 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 continue;
 
             // Per-tap stereo width: up = Haas wider, down = collapse to mono
-            float widthVal = widthValues[repeat - 1]; // -1 to 1, 0 = no change
+            float widthVal = widthValues[repeat - 1];
             int readPosL = readPosition;
             int readPosR = readPosition;
             if (numChannels > 1 && widthVal < 0.0f)
@@ -279,10 +279,9 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             // Positive width (down): blend toward mono
             if (numChannels > 1 && widthVal > 0.0f)
             {
-                float monoBlend = widthVal; // 0 to 1
                 float M = (tapL + tapR) * 0.5f;
-                tapL += (M - tapL) * monoBlend;
-                tapR += (M - tapR) * monoBlend;
+                tapL += (M - tapL) * widthVal;
+                tapR += (M - tapR) * widthVal;
             }
 
             wetL += tapL;

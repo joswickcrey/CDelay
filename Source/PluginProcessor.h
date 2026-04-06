@@ -79,6 +79,6 @@ private:
     bool wasPlaying = false;
 
     juce::SmoothedValue<float> delayTimeSmoothed;
-    
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CDelayAudioProcessor)
 };

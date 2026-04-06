@@ -506,7 +506,7 @@ void CDelayAudioProcessorEditor::timerCallback()
         audioProcessor.panValues[i]          = panBarGraph.getBarValue(i);
         audioProcessor.feedbackValues[i]     = feedbackBarGraph.getBarValue(i);
         audioProcessor.perTapFilterValues[i] = (1.0f - perTapFilterGraph.getBarValue(i)) * 0.5f;
-        audioProcessor.widthValues[i]         = widthBarGraph.getBarValue(i);
+        audioProcessor.widthValues[i]        = widthBarGraph.getBarValue(i);
     }
 
     for (int i = 0; i < count; ++i)

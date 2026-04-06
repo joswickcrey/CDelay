@@ -134,6 +134,7 @@ private:
     juce::Label  swingLabel;
     std::unique_ptr<SliderAttachment> swingAttachment;
 
+
     bool wasBpmSync = false;
 
     juce::TextButton volumeTab      { "Volume" };
