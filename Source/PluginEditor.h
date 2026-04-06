@@ -25,9 +25,12 @@ public:
     void setActiveCount(int count);
     float getBarValue(int index) const;
     void setLabel(const juce::String& text);
+    void resetAll(float value);
 
     juce::String serialize() const;
     void deserialize(const juce::String& data);
+
+    std::function<void()> onBarChanged;
 
 private:
     std::array<float, MAX_DELAY_COUNT> values;
@@ -56,6 +59,7 @@ public:
     void setActiveCount(int count);
     float getBarValue(int index) const;
     void setLabel(const juce::String& text);
+    void resetAll(float value);
 
     juce::String serialize() const;
     void deserialize(const juce::String& data);
@@ -142,6 +146,10 @@ private:
     juce::TextButton feedbackTab    { "Feedback" };
     juce::TextButton tapFilterTab   { "Filter" };
     juce::TextButton widthTab       { "Width" };
+    juce::TextButton resetButton   { "Reset" };
+
+    std::array<std::unique_ptr<juce::Slider>, MAX_DELAY_COUNT> fbTimingKnobs;
+    std::array<std::unique_ptr<juce::ToggleButton>, MAX_DELAY_COUNT> fbTimingSyncToggles;
     int activeTab = 0;
     void updateTabAppearance();
 

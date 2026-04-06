@@ -42,6 +42,8 @@ public:
     std::array<float, MAX_DELAY_COUNT> feedbackValues;
     std::array<float, MAX_DELAY_COUNT> perTapFilterValues;
     std::array<float, MAX_DELAY_COUNT> widthValues;
+    std::array<float, MAX_DELAY_COUNT> fbTimingValues;   // 0-9 division index per tap
+    std::array<float, MAX_DELAY_COUNT> fbTimingSyncFlags; // 1.0 = synced, 0.0 = independent
 
     float lastMsValue = 500.0f;
     float lastDivisionValue = 4.0f;

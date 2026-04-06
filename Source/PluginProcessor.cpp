@@ -13,6 +13,8 @@ CDelayAudioProcessor::CDelayAudioProcessor()
     feedbackValues.fill(0.0f);
     perTapFilterValues.fill(0.5f);
     widthValues.fill(0.0f);
+    fbTimingValues.fill(3.0f);
+    fbTimingSyncFlags.fill(1.0f);
 }
 
 CDelayAudioProcessor::~CDelayAudioProcessor() {}
@@ -156,20 +158,20 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
     bool bpmSync = apvts.getRawParameterValue("bpmSync")->load() > 0.5f;
 
+    const double divisions[] = {
+        0.25, 0.5, 0.75, 1.0, 1.5,
+        2.0,  3.0, 4.0,  6.0, 8.0
+    };
+
+    double bpm = 120.0;
     if (bpmSync)
     {
-        double bpm = 120.0;
         if (auto* ph = getPlayHead())
         {
             if (auto position = ph->getPosition())
                 if (auto bpmVal = position->getBpm())
                     bpm = *bpmVal;
         }
-
-        const double divisions[] = {
-            0.25, 0.5, 0.75, 1.0, 1.5,
-            2.0,  3.0, 4.0,  6.0, 8.0
-        };
 
         int divIndex = (int)apvts.getRawParameterValue("noteDivision")->load();
         double secondsPerBeat = 60.0 / bpm;
@@ -179,6 +181,28 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     else
     {
         delayTimeSmoothed.setTargetValue((float)((delayTimeMs / 1000.0f) * currentSampleRate));
+    }
+
+    // Precompute per-tap feedback delay samples
+    std::array<int, MAX_DELAY_COUNT> fbDelaySamples;
+    {
+        double secondsPerBeat = 60.0 / bpm;
+        for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+        {
+            if (fbTimingSyncFlags[i] > 0.5f)
+            {
+                fbDelaySamples[i] = 0; // 0 = use default (repeat * smoothedDelaySamples)
+            }
+            else if (bpmSync)
+            {
+                int divIdx = juce::jlimit(0, 9, (int)fbTimingValues[i]);
+                fbDelaySamples[i] = (int)(secondsPerBeat * divisions[divIdx] * currentSampleRate);
+            }
+            else
+            {
+                fbDelaySamples[i] = 0; // ms mode: no independent timing available
+            }
+        }
     }
 
     const int numChannels = buffer.getNumChannels();
@@ -207,7 +231,10 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             float feedbackSample = 0.0f;
             for (int repeat = 1; repeat <= delayCount; ++repeat)
             {
-                int fbReadPos = writePosition - (repeat * smoothedDelaySamples);
+                int fbDelay = (fbDelaySamples[repeat - 1] > 0)
+                    ? fbDelaySamples[repeat - 1]
+                    : repeat * smoothedDelaySamples;
+                int fbReadPos = writePosition - fbDelay;
                 if (repeat % 2 == 0)
                     fbReadPos -= swingOffsetSamples;
                 if (bufferSize > 0)
@@ -404,6 +431,17 @@ void CDelayAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     }
     panXml->setAttribute("data", panData);
 
+    auto* fbTimingXml = graphXml->createNewChildElement("FBTiming");
+    juce::String fbTimingData, fbSyncData;
+    for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+    {
+        fbTimingData += juce::String((int)fbTimingValues[i]);
+        fbSyncData   += juce::String((int)fbTimingSyncFlags[i]);
+        if (i < MAX_DELAY_COUNT - 1) { fbTimingData += ","; fbSyncData += ","; }
+    }
+    fbTimingXml->setAttribute("divisions", fbTimingData);
+    fbTimingXml->setAttribute("sync", fbSyncData);
+
     auto* widthXml = graphXml->createNewChildElement("WidthBars");
     juce::String widthData;
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
@@ -463,6 +501,19 @@ void CDelayAudioProcessor::setStateInformation(const void* data, int sizeInBytes
                 panXml->getStringAttribute("data"), ",", "");
             for (int i = 0; i < juce::jmin((int)tokens.size(), MAX_DELAY_COUNT); ++i)
                 panValues[i] = juce::jlimit(-1.0f, 1.0f, tokens[i].getFloatValue());
+        }
+
+        if (auto* fbTimingXml = xmlState->getChildByName("FBTiming"))
+        {
+            auto divTokens = juce::StringArray::fromTokens(
+                fbTimingXml->getStringAttribute("divisions"), ",", "");
+            for (int i = 0; i < juce::jmin((int)divTokens.size(), MAX_DELAY_COUNT); ++i)
+                fbTimingValues[i] = juce::jlimit(0.0f, 9.0f, divTokens[i].getFloatValue());
+
+            auto syncTokens = juce::StringArray::fromTokens(
+                fbTimingXml->getStringAttribute("sync"), ",", "");
+            for (int i = 0; i < juce::jmin((int)syncTokens.size(), MAX_DELAY_COUNT); ++i)
+                fbTimingSyncFlags[i] = syncTokens[i].getFloatValue() > 0.5f ? 1.0f : 0.0f;
         }
 
         if (auto* widthXml = xmlState->getChildByName("WidthBars"))

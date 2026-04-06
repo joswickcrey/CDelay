@@ -72,6 +72,12 @@ void VolumeBarGraph::setLabel(const juce::String& text)
     repaint();
 }
 
+void VolumeBarGraph::resetAll(float value)
+{
+    values.fill(value);
+    repaint();
+}
+
 void VolumeBarGraph::mouseDown(const juce::MouseEvent& e)
 {
     int index = getBarIndexAt(e.position);
@@ -81,6 +87,7 @@ void VolumeBarGraph::mouseDown(const juce::MouseEvent& e)
         float labelH = 16.0f;
         float newVal = 1.0f - ((e.position.y - labelH) / (getHeight() - labelH));
         values[draggedBar] = juce::jlimit(0.0f, 1.0f, newVal);
+        if (onBarChanged) onBarChanged();
         repaint();
     }
 }
@@ -96,6 +103,7 @@ void VolumeBarGraph::mouseDrag(const juce::MouseEvent& e)
         float labelH = 16.0f;
         float newVal = 1.0f - ((e.position.y - labelH) / (getHeight() - labelH));
         values[currentBar] = juce::jlimit(0.0f, 1.0f, newVal);
+        if (onBarChanged) onBarChanged();
     }
     repaint();
 }
@@ -202,6 +210,12 @@ void PanBarGraph::resized() {}
 void PanBarGraph::setLabel(const juce::String& text)
 {
     label = text;
+    repaint();
+}
+
+void PanBarGraph::resetAll(float value)
+{
+    values.fill(value);
     repaint();
 }
 
@@ -323,6 +337,42 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
     addAndMakeVisible(feedbackTab);
     addAndMakeVisible(tapFilterTab);
     addAndMakeVisible(widthTab);
+    addAndMakeVisible(resetButton);
+
+    for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+    {
+        fbTimingKnobs[i] = std::make_unique<juce::Slider>();
+        fbTimingKnobs[i]->setSliderStyle(juce::Slider::RotaryVerticalDrag);
+        fbTimingKnobs[i]->setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
+        fbTimingKnobs[i]->setRange(0, 9, 1);
+        fbTimingKnobs[i]->setValue(3.0, juce::dontSendNotification); // 1/4
+        fbTimingKnobs[i]->setVisible(false);
+        addAndMakeVisible(fbTimingKnobs[i].get());
+
+        fbTimingSyncToggles[i] = std::make_unique<juce::ToggleButton>();
+        fbTimingSyncToggles[i]->setToggleState(true, juce::dontSendNotification);
+        fbTimingSyncToggles[i]->setVisible(false);
+        addAndMakeVisible(fbTimingSyncToggles[i].get());
+    }
+
+    resetButton.onClick = [this]()
+    {
+        switch (activeTab)
+        {
+            case 0: volumeBarGraph.resetAll(0.5f);   break;
+            case 1: panBarGraph.resetAll(0.0f);       break;
+            case 2:
+                feedbackBarGraph.resetAll(0.0f);
+                for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+                {
+                    fbTimingKnobs[i]->setValue(3.0, juce::dontSendNotification);
+                    fbTimingSyncToggles[i]->setToggleState(true, juce::dontSendNotification);
+                }
+                break;
+            case 3: perTapFilterGraph.resetAll(0.0f); break;
+            case 4: widthBarGraph.resetAll(0.0f);     break;
+        }
+    };
 
     auto showOnly = [this](int tab)
     {
@@ -332,6 +382,14 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
         feedbackBarGraph.setVisible (tab == 2);
         perTapFilterGraph.setVisible(tab == 3);
         widthBarGraph.setVisible    (tab == 4);
+
+        for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+        {
+            fbTimingKnobs[i]->setVisible(tab == 2);
+            fbTimingSyncToggles[i]->setVisible(tab == 2);
+        }
+
+        resized();
         updateTabAppearance();
     };
 
@@ -343,7 +401,7 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
 
     showOnly(0);
 
-    setSize(730, 500);
+    setSize(730, 560);
     startTimerHz(30);
 
     stateLoaded = false;
@@ -414,15 +472,33 @@ void CDelayAudioProcessorEditor::resized()
     feedbackTab.setBounds   (178, graphTop, 80, tabH);
     tapFilterTab.setBounds  (262, graphTop, 80, tabH);
     widthTab.setBounds      (346, graphTop, 80, tabH);
+    resetButton.setBounds   (getWidth() - 70, graphTop, 60, tabH);
 
     int graphAreaTop = graphTop + tabH + 4;
-    int graphHeight  = getHeight() - graphAreaTop - 10;
+    int fbControlsH  = 56;
+    int graphHeight   = getHeight() - graphAreaTop - 10 - fbControlsH;
+    int graphWidth    = getWidth() - 20;
 
-    volumeBarGraph.setBounds   (10, graphAreaTop, getWidth() - 20, graphHeight);
-    panBarGraph.setBounds      (10, graphAreaTop, getWidth() - 20, graphHeight);
-    feedbackBarGraph.setBounds (10, graphAreaTop, getWidth() - 20, graphHeight);
-    perTapFilterGraph.setBounds(10, graphAreaTop, getWidth() - 20, graphHeight);
-    widthBarGraph.setBounds    (10, graphAreaTop, getWidth() - 20, graphHeight);
+    volumeBarGraph.setBounds   (10, graphAreaTop, graphWidth, graphHeight);
+    panBarGraph.setBounds      (10, graphAreaTop, graphWidth, graphHeight);
+    feedbackBarGraph.setBounds (10, graphAreaTop, graphWidth, graphHeight);
+    perTapFilterGraph.setBounds(10, graphAreaTop, graphWidth, graphHeight);
+    widthBarGraph.setBounds    (10, graphAreaTop, graphWidth, graphHeight);
+
+    if (activeTab == 2)
+    {
+        float colW = (float)graphWidth / MAX_DELAY_COUNT;
+        int knobTop    = graphAreaTop + graphHeight + 2;
+        int toggleTop  = knobTop + 36;
+
+        for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+        {
+            int x = 10 + (int)(i * colW);
+            int w = (int)colW;
+            fbTimingKnobs[i]->setBounds      (x + 2, knobTop,   w - 4, 34);
+            fbTimingSyncToggles[i]->setBounds (x + 2, toggleTop, w - 4, 18);
+        }
+    }
 }
 
 void CDelayAudioProcessorEditor::timerCallback()
@@ -475,6 +551,12 @@ void CDelayAudioProcessorEditor::timerCallback()
         }
         widthBarGraph.deserialize(widthData);
 
+        for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+        {
+            fbTimingKnobs[i]->setValue(audioProcessor.fbTimingValues[i], juce::dontSendNotification);
+            fbTimingSyncToggles[i]->setToggleState(audioProcessor.fbTimingSyncFlags[i] > 0.5f, juce::dontSendNotification);
+        }
+
         bool initBpmSync = audioProcessor.apvts.getRawParameterValue("bpmSync")->load() > 0.5f;
         wasBpmSync = initBpmSync;
         if (initBpmSync)
@@ -500,6 +582,8 @@ void CDelayAudioProcessorEditor::timerCallback()
     perTapFilterGraph.setActiveCount(count);
     widthBarGraph.setActiveCount(count);
 
+    int parentDiv = (int)audioProcessor.apvts.getRawParameterValue("noteDivision")->load();
+
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
     {
         audioProcessor.barValues[i]          = volumeBarGraph.getBarValue(i);
@@ -507,6 +591,21 @@ void CDelayAudioProcessorEditor::timerCallback()
         audioProcessor.feedbackValues[i]     = feedbackBarGraph.getBarValue(i);
         audioProcessor.perTapFilterValues[i] = (1.0f - perTapFilterGraph.getBarValue(i)) * 0.5f;
         audioProcessor.widthValues[i]        = widthBarGraph.getBarValue(i);
+
+        bool synced = fbTimingSyncToggles[i]->getToggleState();
+        audioProcessor.fbTimingSyncFlags[i] = synced ? 1.0f : 0.0f;
+
+        if (synced)
+        {
+            fbTimingKnobs[i]->setValue((double)parentDiv, juce::dontSendNotification);
+            fbTimingKnobs[i]->setEnabled(false);
+        }
+        else
+        {
+            fbTimingKnobs[i]->setEnabled(true);
+        }
+
+        audioProcessor.fbTimingValues[i] = (float)fbTimingKnobs[i]->getValue();
     }
 
     for (int i = 0; i < count; ++i)
