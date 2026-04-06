@@ -10,6 +10,7 @@ CDelayAudioProcessor::CDelayAudioProcessor()
     repeatGains.fill(1.0f);
     barValues.fill(0.5f);
     panValues.fill(0.0f);
+    feedbackValues.fill(0.0f);
 }
 
 CDelayAudioProcessor::~CDelayAudioProcessor() {}
@@ -179,7 +180,17 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         {
             float drySample = buffer.getSample(channel, sample) * smoothedInput;
 
-            delayBuffer.setSample(channel, writePosition, drySample * sendAmount);
+            float feedbackSample = 0.0f;
+            for (int repeat = 1; repeat <= delayCount; ++repeat)
+            {
+                int fbReadPos = writePosition - (repeat * smoothedDelaySamples);
+                if (bufferSize > 0)
+                    fbReadPos = ((fbReadPos % bufferSize) + bufferSize) % bufferSize;
+                feedbackSample += delayBuffer.getSample(channel, fbReadPos)
+                    * feedbackValues[repeat - 1];
+            }
+
+            delayBuffer.setSample(channel, writePosition, drySample * sendAmount + feedbackSample);
 
             float wetSample = 0.0f;
             for (int repeat = 1; repeat <= delayCount; ++repeat)
@@ -324,6 +335,16 @@ void CDelayAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     }
     panXml->setAttribute("data", panData);
 
+    auto* feedbackXml = graphXml->createNewChildElement("FeedbackBars");
+    juce::String feedbackData;
+    for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+    {
+        feedbackData += juce::String(feedbackValues[i]);
+        if (i < MAX_DELAY_COUNT - 1)
+            feedbackData += ",";
+    }
+    feedbackXml->setAttribute("data", feedbackData);
+
     auto* modeXml = graphXml->createNewChildElement("DelayTimeMode");
     modeXml->setAttribute("lastMs", lastMsValue);
     modeXml->setAttribute("lastDivision", lastDivisionValue);
@@ -353,6 +374,14 @@ void CDelayAudioProcessor::setStateInformation(const void* data, int sizeInBytes
                 panXml->getStringAttribute("data"), ",", "");
             for (int i = 0; i < juce::jmin((int)tokens.size(), MAX_DELAY_COUNT); ++i)
                 panValues[i] = juce::jlimit(-1.0f, 1.0f, tokens[i].getFloatValue());
+        }
+
+        if (auto* feedbackXml = xmlState->getChildByName("FeedbackBars"))
+        {
+            auto tokens = juce::StringArray::fromTokens(
+                feedbackXml->getStringAttribute("data"), ",", "");
+            for (int i = 0; i < juce::jmin((int)tokens.size(), MAX_DELAY_COUNT); ++i)
+                feedbackValues[i] = juce::jlimit(0.0f, 1.0f, tokens[i].getFloatValue());
         }
 
         if (auto* modeXml = xmlState->getChildByName("DelayTimeMode"))

@@ -35,10 +35,9 @@ void VolumeBarGraph::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(30, 30, 30));
 
-    // Label
     g.setColour(juce::Colours::white);
     g.setFont(12.0f);
-    g.drawText("Volume", 4, 0, 60, 16, juce::Justification::centredLeft, false);
+    g.drawText(label, 4, 0, 60, 16, juce::Justification::centredLeft, false);
 
     g.setColour(juce::Colour(80, 80, 80));
     g.drawRect(getLocalBounds(), 1);
@@ -54,21 +53,24 @@ void VolumeBarGraph::paint(juce::Graphics& g)
         float y = labelH + (barArea - barH);
         bool  isActive = i < activeCount;
 
-        // Bar background
         g.setColour(isActive ? juce::Colour(40, 40, 50) : juce::Colour(35, 35, 35));
         g.fillRect(x + 1, labelH, barWidth - 2, barArea);
 
-        // Filled portion — blue up to 100%, red from 100% to 120%
         g.setColour(isActive ? juce::Colour(50, 205, 50) : juce::Colour(30, 60, 30));
         g.fillRect(x + 1, y, barWidth - 2, barH);
 
-        // Divider between bars
         g.setColour(juce::Colour(20, 20, 20));
         g.drawLine(x, labelH, x, (float)getHeight(), 1.0f);
     }
 }
 
 void VolumeBarGraph::resized() {}
+
+void VolumeBarGraph::setLabel(const juce::String& text)
+{
+    label = text;
+    repaint();
+}
 
 void VolumeBarGraph::mouseDown(const juce::MouseEvent& e)
 {
@@ -88,7 +90,6 @@ void VolumeBarGraph::mouseDrag(const juce::MouseEvent& e)
     if (draggedBar == -1)
         return;
 
-    // Update whichever bar the mouse is currently over
     int currentBar = getBarIndexAt(e.position);
     if (currentBar < activeCount)
     {
@@ -161,7 +162,6 @@ void PanBarGraph::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(30, 30, 30));
 
-    // Label
     g.setColour(juce::Colours::white);
     g.setFont(12.0f);
     g.drawText("Pan", 4, 0, 60, 16, juce::Justification::centredLeft, false);
@@ -180,22 +180,18 @@ void PanBarGraph::paint(juce::Graphics& g)
         bool isActive = i < activeCount;
         float val = values[i];
 
-        // Bar background
         g.setColour(isActive ? juce::Colour(40, 40, 50) : juce::Colour(35, 35, 35));
         g.fillRect(x + 1, labelH, barWidth - 2, barArea);
 
-        // Center line
         g.setColour(juce::Colour(80, 80, 80));
         g.drawLine(x + 1, centerY, x + barWidth - 1, centerY, 1.0f);
 
-        // Filled portion draws from center outward
         float fillH = std::abs(val) * (barArea / 2.0f);
         float fillY = val <= 0.0f ? centerY - fillH : centerY;
 
         g.setColour(isActive ? juce::Colour(50, 205, 50) : juce::Colour(30, 60, 30));
         g.fillRect(x + 1, fillY, barWidth - 2, fillH);
 
-        // Divider
         g.setColour(juce::Colour(20, 20, 20));
         g.drawLine(x, labelH, x, (float)getHeight(), 1.0f);
     }
@@ -220,7 +216,6 @@ void PanBarGraph::mouseDrag(const juce::MouseEvent& e)
     if (draggedBar == -1)
         return;
 
-    // Update whichever bar the mouse is currently over
     int currentBar = getBarIndexAt(e.position);
     if (currentBar < activeCount)
     {
@@ -267,7 +262,7 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
     auto setupKnob = [this](juce::Slider& slider, juce::Label& label,
         const juce::String& labelText)
         {
-            slider.setSliderStyle(juce::Slider::Rotary);
+            slider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
             slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
             addAndMakeVisible(slider);
 
@@ -304,9 +299,46 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
     filterDelaysOnlyAttachment = std::make_unique<ButtonAttachment>(
         audioProcessor.apvts, "filterDelaysOnly", filterDelaysOnlyButton);
 
+    feedbackBarGraph.setLabel("Feedback");
+
     addAndMakeVisible(noteDivisionLabel);
     addAndMakeVisible(volumeBarGraph);
     addAndMakeVisible(panBarGraph);
+    addAndMakeVisible(feedbackBarGraph);
+    addAndMakeVisible(volumeTab);
+    addAndMakeVisible(panTab);
+    addAndMakeVisible(feedbackTab);
+
+    volumeTab.onClick = [this]()
+    {
+        activeTab = 0;
+        volumeBarGraph.setVisible(true);
+        panBarGraph.setVisible(false);
+        feedbackBarGraph.setVisible(false);
+        updateTabAppearance();
+    };
+
+    panTab.onClick = [this]()
+    {
+        activeTab = 1;
+        volumeBarGraph.setVisible(false);
+        panBarGraph.setVisible(true);
+        feedbackBarGraph.setVisible(false);
+        updateTabAppearance();
+    };
+
+    feedbackTab.onClick = [this]()
+    {
+        activeTab = 2;
+        volumeBarGraph.setVisible(false);
+        panBarGraph.setVisible(false);
+        feedbackBarGraph.setVisible(true);
+        updateTabAppearance();
+    };
+
+    panBarGraph.setVisible(false);
+    feedbackBarGraph.setVisible(false);
+    updateTabAppearance();
 
     setSize(650, 500);
     startTimerHz(30);
@@ -369,10 +401,18 @@ void CDelayAudioProcessorEditor::resized()
     sendLabel.setBounds(550, topRow + knobSize, knobSize, labelHeight);
 
     int graphTop = topRow + knobSize + labelHeight + 70;
-    int graphHeight = (getHeight() - graphTop - 30) / 2 - 10;
 
-    volumeBarGraph.setBounds(10, graphTop, getWidth() - 20, graphHeight);
-    panBarGraph.setBounds(10, graphTop + graphHeight + 20, getWidth() - 20, graphHeight);
+    int tabH = 24;
+    volumeTab.setBounds  (10,  graphTop, 80, tabH);
+    panTab.setBounds     (94,  graphTop, 80, tabH);
+    feedbackTab.setBounds(178, graphTop, 80, tabH);
+
+    int graphAreaTop = graphTop + tabH + 4;
+    int graphHeight  = getHeight() - graphAreaTop - 10;
+
+    volumeBarGraph.setBounds  (10, graphAreaTop, getWidth() - 20, graphHeight);
+    panBarGraph.setBounds     (10, graphAreaTop, getWidth() - 20, graphHeight);
+    feedbackBarGraph.setBounds(10, graphAreaTop, getWidth() - 20, graphHeight);
 }
 
 void CDelayAudioProcessorEditor::timerCallback()
@@ -397,7 +437,15 @@ void CDelayAudioProcessorEditor::timerCallback()
         }
         panBarGraph.deserialize(panData);
 
-        // Restore correct knob mode after state load
+        juce::String feedbackData;
+        for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+        {
+            feedbackData += juce::String(audioProcessor.feedbackValues[i]);
+            if (i < MAX_DELAY_COUNT - 1)
+                feedbackData += ",";
+        }
+        feedbackBarGraph.deserialize(feedbackData);
+
         bool initBpmSync = audioProcessor.apvts.getRawParameterValue("bpmSync")->load() > 0.5f;
         wasBpmSync = initBpmSync;
         if (initBpmSync)
@@ -419,11 +467,13 @@ void CDelayAudioProcessorEditor::timerCallback()
     int count = (int)audioProcessor.apvts.getRawParameterValue("delayCount")->load();
     volumeBarGraph.setActiveCount(count);
     panBarGraph.setActiveCount(count);
+    feedbackBarGraph.setActiveCount(count);
 
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
     {
-        audioProcessor.barValues[i] = volumeBarGraph.getBarValue(i);
-        audioProcessor.panValues[i] = panBarGraph.getBarValue(i);
+        audioProcessor.barValues[i]    = volumeBarGraph.getBarValue(i);
+        audioProcessor.panValues[i]    = panBarGraph.getBarValue(i);
+        audioProcessor.feedbackValues[i] = feedbackBarGraph.getBarValue(i);
     }
 
     for (int i = 0; i < count; ++i)
@@ -459,7 +509,6 @@ void CDelayAudioProcessorEditor::timerCallback()
         if (auto* param = audioProcessor.apvts.getParameter("noteDivision"))
         {
             targetVal = param->convertTo0to1((float)knobPos);
-            // Only update if value actually changed to avoid constant parameter activity
             if (std::abs(param->getValue() - targetVal) > 0.001f)
                 param->setValueNotifyingHost(targetVal);
         }
@@ -468,4 +517,14 @@ void CDelayAudioProcessorEditor::timerCallback()
     {
         audioProcessor.lastMsValue = (float)delayTimeSlider.getValue();
     }
+}
+
+void CDelayAudioProcessorEditor::updateTabAppearance()
+{
+    auto activeColour   = juce::Colour(70, 130, 180);
+    auto inactiveColour = juce::Colour(50, 50, 55);
+
+    volumeTab.setColour  (juce::TextButton::buttonColourId, activeTab == 0 ? activeColour : inactiveColour);
+    panTab.setColour     (juce::TextButton::buttonColourId, activeTab == 1 ? activeColour : inactiveColour);
+    feedbackTab.setColour(juce::TextButton::buttonColourId, activeTab == 2 ? activeColour : inactiveColour);
 }

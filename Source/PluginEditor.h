@@ -24,6 +24,7 @@ public:
 
     void setActiveCount(int count);
     float getBarValue(int index) const;
+    void setLabel(const juce::String& text);
 
     juce::String serialize() const;
     void deserialize(const juce::String& data);
@@ -32,6 +33,7 @@ private:
     std::array<float, MAX_DELAY_COUNT> values;
     int activeCount = 4;
     int draggedBar = -1;
+    juce::String label = "Volume";
 
     int getBarIndexAt(juce::Point<float> pos) const;
 
@@ -113,7 +115,8 @@ private:
     std::unique_ptr<ComboAttachment>  noteDivisionAttachment;
 
     VolumeBarGraph volumeBarGraph;
-    PanBarGraph panBarGraph;
+    PanBarGraph    panBarGraph;
+    VolumeBarGraph feedbackBarGraph;
     bool stateLoaded = false;
 
     juce::ToggleButton filterDelaysOnlyButton;
@@ -124,6 +127,12 @@ private:
     std::unique_ptr<SliderAttachment> sendAttachment;
 
     bool wasBpmSync = false;
+
+    juce::TextButton volumeTab   { "Volume" };
+    juce::TextButton panTab      { "Pan" };
+    juce::TextButton feedbackTab { "Feedback" };
+    int activeTab = 0;
+    void updateTabAppearance();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CDelayAudioProcessorEditor)
 };

@@ -39,6 +39,7 @@ public:
 
     std::array<float, MAX_DELAY_COUNT> barValues;
     std::array<float, MAX_DELAY_COUNT> panValues;
+    std::array<float, MAX_DELAY_COUNT> feedbackValues;
 
     float lastMsValue = 500.0f;
     float lastDivisionValue = 4.0f;

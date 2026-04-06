@@ -17,3 +17,6 @@ Thumbs.db
 
 # IDE
 *.code-workspace
+
+# Local context
+CONTEXT.md
