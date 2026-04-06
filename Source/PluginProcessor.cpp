@@ -223,58 +223,52 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         int smoothedDelaySamples = (int)delayTimeSmoothed.getNextValue();
         int swingOffsetSamples   = (int)(swingAmount * (float)smoothedDelaySamples * 0.5f);
 
-        // Feedback + dry write (channel-first)
+        // Dry write only — no feedback in main buffer (keeps taps isolated)
         for (int channel = 0; channel < numChannels; ++channel)
         {
             float drySample = buffer.getSample(channel, sample) * smoothedInput;
-
-            float feedbackSample = 0.0f;
-            for (int repeat = 1; repeat <= delayCount; ++repeat)
-            {
-                int fbDelay = (fbDelaySamples[repeat - 1] > 0)
-                    ? fbDelaySamples[repeat - 1]
-                    : repeat * smoothedDelaySamples;
-                int fbReadPos = writePosition - fbDelay;
-                if (repeat % 2 == 0)
-                    fbReadPos -= swingOffsetSamples;
-                if (bufferSize > 0)
-                    fbReadPos = ((fbReadPos % bufferSize) + bufferSize) % bufferSize;
-                feedbackSample += delayBuffer.getSample(channel, fbReadPos)
-                    * feedbackValues[repeat - 1];
-            }
-
-            delayBuffer.setSample(channel, writePosition, drySample * sendAmount + feedbackSample);
+            delayBuffer.setSample(channel, writePosition, drySample * sendAmount);
             buffer.setSample(channel, sample, drySample * dryGain * smoothedOutput);
         }
 
-        // Wet output (tap-first so width can operate on L+R simultaneously)
+        // Wet output (tap-first, per-tap isolated feedback via multi-echo reads)
         float wetL = 0.0f, wetR = 0.0f;
         for (int repeat = 1; repeat <= delayCount; ++repeat)
         {
-            int readPosition = writePosition - (repeat * smoothedDelaySamples);
+            if (bufferSize <= 0) continue;
+
+            int baseReadPos = writePosition - (repeat * smoothedDelaySamples);
             if (repeat % 2 == 0)
-                readPosition -= swingOffsetSamples;
+                baseReadPos -= swingOffsetSamples;
 
-            if (bufferSize > 0)
-                readPosition = ((readPosition % bufferSize) + bufferSize) % bufferSize;
-            else
-                continue;
+            // Feedback: read multiple echoes from the clean buffer
+            int fbDelay = (fbDelaySamples[repeat - 1] > 0)
+                ? fbDelaySamples[repeat - 1]
+                : repeat * smoothedDelaySamples;
+            float fbGain = feedbackValues[repeat - 1];
 
-            if (readPosition < 0 || readPosition >= bufferSize)
-                continue;
-
-            // Per-tap stereo width: up = Haas wider, down = collapse to mono
             float widthVal = widthValues[repeat - 1];
-            int readPosL = readPosition;
-            int readPosR = readPosition;
-            if (numChannels > 1 && widthVal < 0.0f)
+            int haasOffset = (numChannels > 1 && widthVal < 0.0f)
+                ? (int)(-widthVal * (float)maxHaasSamples) : 0;
+
+            float tapSumL = 0.0f, tapSumR = 0.0f;
+            float gainAccum = 1.0f;
+
+            for (int echo = 0; echo < 30 && gainAccum > 0.001f; ++echo)
             {
-                int haasOffset = (int)(-widthVal * (float)maxHaasSamples);
-                readPosR = (readPosR - haasOffset + bufferSize) % bufferSize;
+                int rL = baseReadPos - echo * fbDelay;
+                rL = ((rL % bufferSize) + bufferSize) % bufferSize;
+                int rR = (haasOffset > 0) ? ((rL - haasOffset + bufferSize) % bufferSize) : rL;
+
+                tapSumL += delayBuffer.getSample(0, rL) * gainAccum;
+                if (numChannels > 1)
+                    tapSumR += delayBuffer.getSample(1, rR) * gainAccum;
+
+                gainAccum *= fbGain;
             }
 
-            float tapL = delayBuffer.getSample(0, readPosL) * repeatGains[repeat - 1];
-            float tapR = (numChannels > 1) ? delayBuffer.getSample(1, readPosR) * repeatGains[repeat - 1] : tapL;
+            float tapL = tapSumL * repeatGains[repeat - 1];
+            float tapR = (numChannels > 1) ? tapSumR * repeatGains[repeat - 1] : tapL;
 
             // Per-tap filter
             float tapFilterVal = perTapFilterValues[repeat - 1];

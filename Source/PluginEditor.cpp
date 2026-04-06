@@ -33,16 +33,12 @@ int VolumeBarGraph::getBarIndexAt(juce::Point<float> pos) const
 
 void VolumeBarGraph::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(30, 30, 30));
+    g.fillAll(juce::Colour(0, 0, 0));
 
-    g.setColour(juce::Colours::white);
-    g.setFont(12.0f);
-    g.drawText(label, 4, 0, 60, 16, juce::Justification::centredLeft, false);
-
-    g.setColour(juce::Colour(80, 80, 80));
+    g.setColour(juce::Colour(0, 60, 0));
     g.drawRect(getLocalBounds(), 1);
 
-    float labelH = 16.0f;
+    float labelH = 0.0f;
     float barArea = getHeight() - labelH;
     float barWidth = (float)getWidth() / MAX_DELAY_COUNT;
 
@@ -53,13 +49,13 @@ void VolumeBarGraph::paint(juce::Graphics& g)
         float y = labelH + (barArea - barH);
         bool  isActive = i < activeCount;
 
-        g.setColour(isActive ? juce::Colour(40, 40, 50) : juce::Colour(35, 35, 35));
+        g.setColour(isActive ? juce::Colour(0, 15, 0) : juce::Colour(0, 5, 0));
         g.fillRect(x + 1, labelH, barWidth - 2, barArea);
 
-        g.setColour(isActive ? juce::Colour(50, 205, 50) : juce::Colour(30, 60, 30));
+        g.setColour(isActive ? juce::Colour(50, 205, 50) : juce::Colour(20, 50, 20));
         g.fillRect(x + 1, y, barWidth - 2, barH);
 
-        g.setColour(juce::Colour(20, 20, 20));
+        g.setColour(juce::Colour(0, 30, 0));
         g.drawLine(x, labelH, x, (float)getHeight(), 1.0f);
     }
 }
@@ -84,7 +80,7 @@ void VolumeBarGraph::mouseDown(const juce::MouseEvent& e)
     if (index < activeCount)
     {
         draggedBar = index;
-        float labelH = 16.0f;
+        float labelH = 0.0f;
         float newVal = 1.0f - ((e.position.y - labelH) / (getHeight() - labelH));
         values[draggedBar] = juce::jlimit(0.0f, 1.0f, newVal);
         if (onBarChanged) onBarChanged();
@@ -100,7 +96,7 @@ void VolumeBarGraph::mouseDrag(const juce::MouseEvent& e)
     int currentBar = getBarIndexAt(e.position);
     if (currentBar < activeCount)
     {
-        float labelH = 16.0f;
+        float labelH = 0.0f;
         float newVal = 1.0f - ((e.position.y - labelH) / (getHeight() - labelH));
         values[currentBar] = juce::jlimit(0.0f, 1.0f, newVal);
         if (onBarChanged) onBarChanged();
@@ -168,16 +164,12 @@ int PanBarGraph::getBarIndexAt(juce::Point<float> pos) const
 
 void PanBarGraph::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colour(30, 30, 30));
+    g.fillAll(juce::Colour(0, 0, 0));
 
-    g.setColour(juce::Colours::white);
-    g.setFont(12.0f);
-    g.drawText(label, 4, 0, 60, 16, juce::Justification::centredLeft, false);
-
-    g.setColour(juce::Colour(80, 80, 80));
+    g.setColour(juce::Colour(0, 60, 0));
     g.drawRect(getLocalBounds(), 1);
 
-    float labelH = 16.0f;
+    float labelH = 0.0f;
     float barArea = getHeight() - labelH;
     float barWidth = (float)getWidth() / MAX_DELAY_COUNT;
     float centerY = labelH + barArea / 2.0f;
@@ -188,19 +180,19 @@ void PanBarGraph::paint(juce::Graphics& g)
         bool isActive = i < activeCount;
         float val = values[i];
 
-        g.setColour(isActive ? juce::Colour(40, 40, 50) : juce::Colour(35, 35, 35));
+        g.setColour(isActive ? juce::Colour(0, 15, 0) : juce::Colour(0, 5, 0));
         g.fillRect(x + 1, labelH, barWidth - 2, barArea);
 
-        g.setColour(juce::Colour(80, 80, 80));
+        g.setColour(juce::Colour(0, 40, 0));
         g.drawLine(x + 1, centerY, x + barWidth - 1, centerY, 1.0f);
 
         float fillH = std::abs(val) * (barArea / 2.0f);
         float fillY = val <= 0.0f ? centerY - fillH : centerY;
 
-        g.setColour(isActive ? juce::Colour(50, 205, 50) : juce::Colour(30, 60, 30));
+        g.setColour(isActive ? juce::Colour(50, 205, 50) : juce::Colour(20, 50, 20));
         g.fillRect(x + 1, fillY, barWidth - 2, fillH);
 
-        g.setColour(juce::Colour(20, 20, 20));
+        g.setColour(juce::Colour(0, 30, 0));
         g.drawLine(x, labelH, x, (float)getHeight(), 1.0f);
     }
 }
@@ -225,7 +217,7 @@ void PanBarGraph::mouseDown(const juce::MouseEvent& e)
     if (index < activeCount)
     {
         draggedBar = index;
-        float labelH = 16.0f;
+        float labelH = 0.0f;
         float newVal = ((e.position.y - labelH) / (getHeight() - labelH)) * 2.0f - 1.0f;
         values[draggedBar] = juce::jlimit(-1.0f, 1.0f, newVal);
         repaint();
@@ -240,7 +232,7 @@ void PanBarGraph::mouseDrag(const juce::MouseEvent& e)
     int currentBar = getBarIndexAt(e.position);
     if (currentBar < activeCount)
     {
-        float labelH = 16.0f;
+        float labelH = 0.0f;
         float newVal = ((e.position.y - labelH) / (getHeight() - labelH)) * 2.0f - 1.0f;
         values[currentBar] = juce::jlimit(-1.0f, 1.0f, newVal);
     }
@@ -345,15 +337,22 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
         fbTimingKnobs[i]->setSliderStyle(juce::Slider::RotaryVerticalDrag);
         fbTimingKnobs[i]->setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
         fbTimingKnobs[i]->setRange(0, 9, 1);
-        fbTimingKnobs[i]->setValue(3.0, juce::dontSendNotification); // 1/4
+        fbTimingKnobs[i]->setValue(3.0, juce::dontSendNotification);
+        fbTimingKnobs[i]->setColour(juce::Slider::rotarySliderFillColourId, juce::Colour(50, 205, 50));
+        fbTimingKnobs[i]->setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour(0, 40, 0));
+        fbTimingKnobs[i]->setColour(juce::Slider::thumbColourId, juce::Colour(50, 205, 50));
         fbTimingKnobs[i]->setVisible(false);
         addAndMakeVisible(fbTimingKnobs[i].get());
 
         fbTimingSyncToggles[i] = std::make_unique<juce::ToggleButton>();
         fbTimingSyncToggles[i]->setToggleState(true, juce::dontSendNotification);
+        fbTimingSyncToggles[i]->setColour(juce::ToggleButton::tickColourId, juce::Colour(50, 205, 50));
         fbTimingSyncToggles[i]->setVisible(false);
         addAndMakeVisible(fbTimingSyncToggles[i].get());
     }
+
+    resetButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0, 30, 0));
+    resetButton.setColour(juce::TextButton::textColourOffId, juce::Colour(50, 205, 50));
 
     resetButton.onClick = [this]()
     {
@@ -401,7 +400,7 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
 
     showOnly(0);
 
-    setSize(730, 560);
+    setSize(850, 450);
     startTimerHz(30);
 
     stateLoaded = false;
@@ -428,75 +427,99 @@ CDelayAudioProcessorEditor::~CDelayAudioProcessorEditor() {}
 void CDelayAudioProcessorEditor::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colour(40, 40, 40));
+
+    g.setColour(juce::Colour(0, 0, 0));
+    g.fillRoundedRectangle(screenRect.toFloat(), 4.0f);
+
+    g.setColour(juce::Colour(0, 60, 0));
+    g.drawRoundedRectangle(screenRect.toFloat(), 4.0f, 1.0f);
 }
 
 void CDelayAudioProcessorEditor::resized()
 {
-    int knobSize = 80;
-    int labelHeight = 20;
-    int topRow = 10;
+    int k = 80;   // knob size
+    int lh = 16;  // label height
+    int ky = 10;  // knob row y
 
-    delayCountSlider.setBounds(10, topRow, knobSize, knobSize);
-    delayCountLabel.setBounds(10, topRow + knobSize, knobSize, labelHeight);
+    // 8 knobs evenly spaced across the window
+    int gap = (getWidth() - 50 - 8 * k) / 7;
+    auto knobX = [&](int i) { return 25 + i * (k + gap); };
 
-    delayTimeSlider.setBounds(100, topRow, knobSize, knobSize);
-    delayTimeLabel.setBounds(100, topRow + knobSize, knobSize, labelHeight);
+    // Count | Division(+BPM) | DryWet | Swing || InputVol | Send | Filter(+DelaysOnly) | OutputVol
+    delayCountSlider.setBounds   (knobX(0), ky, k, k);
+    delayCountLabel.setBounds    (knobX(0), ky+k, k, lh);
 
-    inputVolumeSlider.setBounds(190, topRow, knobSize, knobSize);
-    inputVolumeLabel.setBounds(190, topRow + knobSize, knobSize, labelHeight);
+    delayTimeSlider.setBounds    (knobX(1), ky, k, k);
+    delayTimeLabel.setBounds     (knobX(1), ky+k, k, lh);
+    bpmSyncButton.setBounds      (knobX(1), ky+k+lh+2, k, 20);
 
-    dryWetSlider.setBounds(280, topRow, knobSize, knobSize);
-    dryWetLabel.setBounds(280, topRow + knobSize, knobSize, labelHeight);
+    dryWetSlider.setBounds       (knobX(2), ky, k, k);
+    dryWetLabel.setBounds        (knobX(2), ky+k, k, lh);
 
-    outputVolumeSlider.setBounds(370, topRow, knobSize, knobSize);
-    outputVolumeLabel.setBounds(370, topRow + knobSize, knobSize, labelHeight);
+    swingSlider.setBounds        (knobX(3), ky, k, k);
+    swingLabel.setBounds         (knobX(3), ky+k, k, lh);
 
-    filterSlider.setBounds(460, topRow, knobSize, knobSize);
-    filterLabel.setBounds(460, topRow + knobSize, knobSize, labelHeight);
+    inputVolumeSlider.setBounds  (knobX(4), ky, k, k);
+    inputVolumeLabel.setBounds   (knobX(4), ky+k, k, lh);
 
-    bpmSyncButton.setBounds(100, topRow + knobSize + labelHeight + 5, 80, 20);
+    sendSlider.setBounds         (knobX(5), ky, k, k);
+    sendLabel.setBounds          (knobX(5), ky+k, k, lh);
 
-    filterDelaysOnlyButton.setBounds(460, topRow + knobSize + labelHeight + 5, 90, 20);
+    filterSlider.setBounds       (knobX(6), ky, k, k);
+    filterLabel.setBounds        (knobX(6), ky+k, k, lh);
+    filterDelaysOnlyButton.setBounds(knobX(6), ky+k+lh+2, k, 20);
 
-    sendSlider.setBounds (550, topRow, knobSize, knobSize);
-    sendLabel.setBounds  (550, topRow + knobSize, knobSize, labelHeight);
+    outputVolumeSlider.setBounds (knobX(7), ky, k, k);
+    outputVolumeLabel.setBounds  (knobX(7), ky+k, k, lh);
 
-    swingSlider.setBounds(640, topRow, knobSize, knobSize);
-    swingLabel.setBounds (640, topRow + knobSize, knobSize, labelHeight);
-
-    int graphTop = topRow + knobSize + labelHeight + 70;
-
+    // --- Tab bar (centered) ---
     int tabH = 24;
-    volumeTab.setBounds     (10,  graphTop, 80, tabH);
-    panTab.setBounds        (94,  graphTop, 80, tabH);
-    feedbackTab.setBounds   (178, graphTop, 80, tabH);
-    tapFilterTab.setBounds  (262, graphTop, 80, tabH);
-    widthTab.setBounds      (346, graphTop, 80, tabH);
-    resetButton.setBounds   (getWidth() - 70, graphTop, 60, tabH);
+    int tabW = 80;
+    int tabGap = 4;
+    int numTabs = 5;
+    int totalTabW = numTabs * tabW + (numTabs - 1) * tabGap;
+    int tabX = (getWidth() - totalTabW) / 2;
+    int tabY = ky + k + lh + 30;
 
-    int graphAreaTop = graphTop + tabH + 4;
-    int fbControlsH  = 56;
-    int graphHeight   = getHeight() - graphAreaTop - 10 - fbControlsH;
-    int graphWidth    = getWidth() - 20;
+    volumeTab.setBounds   (tabX,                          tabY, tabW, tabH);
+    panTab.setBounds      (tabX + 1 * (tabW + tabGap),   tabY, tabW, tabH);
+    feedbackTab.setBounds (tabX + 2 * (tabW + tabGap),   tabY, tabW, tabH);
+    tapFilterTab.setBounds(tabX + 3 * (tabW + tabGap),   tabY, tabW, tabH);
+    widthTab.setBounds    (tabX + 4 * (tabW + tabGap),   tabY, tabW, tabH);
 
-    volumeBarGraph.setBounds   (10, graphAreaTop, graphWidth, graphHeight);
-    panBarGraph.setBounds      (10, graphAreaTop, graphWidth, graphHeight);
-    feedbackBarGraph.setBounds (10, graphAreaTop, graphWidth, graphHeight);
-    perTapFilterGraph.setBounds(10, graphAreaTop, graphWidth, graphHeight);
-    widthBarGraph.setBounds    (10, graphAreaTop, graphWidth, graphHeight);
+    // --- Screen container ---
+    int margin = 20;
+    int containerTop = tabY + tabH + 6;
+    screenRect = juce::Rectangle<int>(margin, containerTop,
+        getWidth() - 2 * margin, getHeight() - containerTop - margin);
+
+    int pad = 15;
+    int gx = screenRect.getX() + pad;
+    int gy = screenRect.getY() + pad;
+    int gw = screenRect.getWidth() - 2 * pad;
+    int fbH = 68;
+    int gh = screenRect.getHeight() - 2 * pad - fbH;
+
+    resetButton.setBounds(tabX + totalTabW + 10, tabY, 55, tabH);
+
+    volumeBarGraph.setBounds   (gx, gy, gw, gh);
+    panBarGraph.setBounds      (gx, gy, gw, gh);
+    feedbackBarGraph.setBounds (gx, gy, gw, gh);
+    perTapFilterGraph.setBounds(gx, gy, gw, gh);
+    widthBarGraph.setBounds    (gx, gy, gw, gh);
 
     if (activeTab == 2)
     {
-        float colW = (float)graphWidth / MAX_DELAY_COUNT;
-        int knobTop    = graphAreaTop + graphHeight + 2;
-        int toggleTop  = knobTop + 36;
+        float colW = (float)gw / MAX_DELAY_COUNT;
+        int knobTop   = gy + gh + 2;
+        int toggleTop = knobTop + 44;
 
         for (int i = 0; i < MAX_DELAY_COUNT; ++i)
         {
-            int x = 10 + (int)(i * colW);
-            int w = (int)colW;
-            fbTimingKnobs[i]->setBounds      (x + 2, knobTop,   w - 4, 34);
-            fbTimingSyncToggles[i]->setBounds (x + 2, toggleTop, w - 4, 18);
+            int cx = gx + (int)(i * colW);
+            int cw = (int)colW;
+            fbTimingKnobs[i]->setBounds      (cx + 1, knobTop,   cw - 2, 42);
+            fbTimingSyncToggles[i]->setBounds (cx + 1, toggleTop, cw - 2, 20);
         }
     }
 }
@@ -653,12 +676,21 @@ void CDelayAudioProcessorEditor::timerCallback()
 
 void CDelayAudioProcessorEditor::updateTabAppearance()
 {
-    auto activeColour   = juce::Colour(70, 130, 180);
-    auto inactiveColour = juce::Colour(50, 50, 55);
+    auto activeColour   = juce::Colour(50, 205, 50);
+    auto inactiveColour = juce::Colour(0, 40, 0);
 
-    volumeTab.setColour   (juce::TextButton::buttonColourId, activeTab == 0 ? activeColour : inactiveColour);
-    panTab.setColour      (juce::TextButton::buttonColourId, activeTab == 1 ? activeColour : inactiveColour);
-    feedbackTab.setColour (juce::TextButton::buttonColourId, activeTab == 2 ? activeColour : inactiveColour);
-    tapFilterTab.setColour(juce::TextButton::buttonColourId, activeTab == 3 ? activeColour : inactiveColour);
-    widthTab.setColour    (juce::TextButton::buttonColourId, activeTab == 4 ? activeColour : inactiveColour);
+    auto textColour = juce::Colour(0, 0, 0);
+    auto inactiveTextColour = juce::Colour(50, 205, 50);
+
+    auto setTab = [&](juce::TextButton& tab, bool active)
+    {
+        tab.setColour(juce::TextButton::buttonColourId,  active ? activeColour : inactiveColour);
+        tab.setColour(juce::TextButton::textColourOffId, active ? textColour : inactiveTextColour);
+    };
+
+    setTab(volumeTab,    activeTab == 0);
+    setTab(panTab,       activeTab == 1);
+    setTab(feedbackTab,  activeTab == 2);
+    setTab(tapFilterTab, activeTab == 3);
+    setTab(widthTab,     activeTab == 4);
 }

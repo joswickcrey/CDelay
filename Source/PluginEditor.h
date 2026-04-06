@@ -152,6 +152,7 @@ private:
     std::array<std::unique_ptr<juce::ToggleButton>, MAX_DELAY_COUNT> fbTimingSyncToggles;
     int activeTab = 0;
     void updateTabAppearance();
+    juce::Rectangle<int> screenRect;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CDelayAudioProcessorEditor)
 };
