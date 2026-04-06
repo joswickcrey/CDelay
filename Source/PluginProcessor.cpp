@@ -11,6 +11,7 @@ CDelayAudioProcessor::CDelayAudioProcessor()
     barValues.fill(0.5f);
     panValues.fill(0.0f);
     feedbackValues.fill(0.0f);
+    perTapFilterValues.fill(0.5f);
 }
 
 CDelayAudioProcessor::~CDelayAudioProcessor() {}
@@ -69,6 +70,24 @@ void CDelayAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     lowPassFilterR.reset();
     highPassFilterL.reset();
     highPassFilterR.reset();
+
+    for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+    {
+        tapLowPassFilterL[i].prepare(spec);
+        tapLowPassFilterR[i].prepare(spec);
+        tapHighPassFilterL[i].prepare(spec);
+        tapHighPassFilterR[i].prepare(spec);
+
+        *tapLowPassFilterL[i].coefficients  = *juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 20000.0f);
+        *tapLowPassFilterR[i].coefficients  = *juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 20000.0f);
+        *tapHighPassFilterL[i].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 20.0f);
+        *tapHighPassFilterR[i].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 20.0f);
+
+        tapLowPassFilterL[i].reset();
+        tapLowPassFilterR[i].reset();
+        tapHighPassFilterL[i].reset();
+        tapHighPassFilterR[i].reset();
+    }
 
     dryLowPassFilterL.prepare(spec);
     dryLowPassFilterR.prepare(spec);
@@ -214,6 +233,38 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 float delayedSample = delayBuffer.getSample(channel, readPosition)
                     * repeatGains[repeat - 1];
 
+                float tapFilterVal = perTapFilterValues[repeat - 1];
+                if (tapFilterVal < 0.49f)
+                {
+                    float t = 1.0f - (tapFilterVal * 2.0f);
+                    float cutoff = juce::jmax(20.0f, 20000.0f * std::pow(200.0f / 20000.0f, t));
+                    if (channel == 0)
+                    {
+                        *tapLowPassFilterL[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff);
+                        delayedSample = tapLowPassFilterL[repeat - 1].processSample(delayedSample);
+                    }
+                    else
+                    {
+                        *tapLowPassFilterR[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff);
+                        delayedSample = tapLowPassFilterR[repeat - 1].processSample(delayedSample);
+                    }
+                }
+                else if (tapFilterVal > 0.51f)
+                {
+                    float t = (tapFilterVal - 0.5f) * 2.0f;
+                    float cutoff = juce::jmin(20000.0f, 20.0f * std::pow(20000.0f / 20.0f, t));
+                    if (channel == 0)
+                    {
+                        *tapHighPassFilterL[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, cutoff);
+                        delayedSample = tapHighPassFilterL[repeat - 1].processSample(delayedSample);
+                    }
+                    else
+                    {
+                        *tapHighPassFilterR[repeat - 1].coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, cutoff);
+                        delayedSample = tapHighPassFilterR[repeat - 1].processSample(delayedSample);
+                    }
+                }
+
                 float pan = panValues[repeat - 1];
                 float panAngle = (pan + 1.0f) * juce::MathConstants<float>::pi / 4.0f;
                 float leftGain = std::cos(panAngle);
@@ -341,6 +392,16 @@ void CDelayAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     }
     panXml->setAttribute("data", panData);
 
+    auto* tapFilterXml = graphXml->createNewChildElement("TapFilterBars");
+    juce::String tapFilterData;
+    for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+    {
+        tapFilterData += juce::String(perTapFilterValues[i]);
+        if (i < MAX_DELAY_COUNT - 1)
+            tapFilterData += ",";
+    }
+    tapFilterXml->setAttribute("data", tapFilterData);
+
     auto* feedbackXml = graphXml->createNewChildElement("FeedbackBars");
     juce::String feedbackData;
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
@@ -380,6 +441,14 @@ void CDelayAudioProcessor::setStateInformation(const void* data, int sizeInBytes
                 panXml->getStringAttribute("data"), ",", "");
             for (int i = 0; i < juce::jmin((int)tokens.size(), MAX_DELAY_COUNT); ++i)
                 panValues[i] = juce::jlimit(-1.0f, 1.0f, tokens[i].getFloatValue());
+        }
+
+        if (auto* tapFilterXml = xmlState->getChildByName("TapFilterBars"))
+        {
+            auto tokens = juce::StringArray::fromTokens(
+                tapFilterXml->getStringAttribute("data"), ",", "");
+            for (int i = 0; i < juce::jmin((int)tokens.size(), MAX_DELAY_COUNT); ++i)
+                perTapFilterValues[i] = juce::jlimit(0.0f, 1.0f, tokens[i].getFloatValue());
         }
 
         if (auto* feedbackXml = xmlState->getChildByName("FeedbackBars"))

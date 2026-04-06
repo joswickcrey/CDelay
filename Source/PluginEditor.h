@@ -117,6 +117,7 @@ private:
     VolumeBarGraph volumeBarGraph;
     PanBarGraph    panBarGraph;
     VolumeBarGraph feedbackBarGraph;
+    PanBarGraph    perTapFilterGraph;
     bool stateLoaded = false;
 
     juce::ToggleButton filterDelaysOnlyButton;
@@ -132,9 +133,10 @@ private:
 
     bool wasBpmSync = false;
 
-    juce::TextButton volumeTab   { "Volume" };
-    juce::TextButton panTab      { "Pan" };
-    juce::TextButton feedbackTab { "Feedback" };
+    juce::TextButton volumeTab      { "Volume" };
+    juce::TextButton panTab         { "Pan" };
+    juce::TextButton feedbackTab    { "Feedback" };
+    juce::TextButton tapFilterTab   { "Filter" };
     int activeTab = 0;
     void updateTabAppearance();
 

@@ -40,6 +40,7 @@ public:
     std::array<float, MAX_DELAY_COUNT> barValues;
     std::array<float, MAX_DELAY_COUNT> panValues;
     std::array<float, MAX_DELAY_COUNT> feedbackValues;
+    std::array<float, MAX_DELAY_COUNT> perTapFilterValues;
 
     float lastMsValue = 500.0f;
     float lastDivisionValue = 4.0f;
@@ -59,6 +60,11 @@ private:
     juce::dsp::IIR::Filter<float> lowPassFilterR;
     juce::dsp::IIR::Filter<float> highPassFilterL;
     juce::dsp::IIR::Filter<float> highPassFilterR;
+
+    std::array<juce::dsp::IIR::Filter<float>, MAX_DELAY_COUNT> tapLowPassFilterL;
+    std::array<juce::dsp::IIR::Filter<float>, MAX_DELAY_COUNT> tapLowPassFilterR;
+    std::array<juce::dsp::IIR::Filter<float>, MAX_DELAY_COUNT> tapHighPassFilterL;
+    std::array<juce::dsp::IIR::Filter<float>, MAX_DELAY_COUNT> tapHighPassFilterR;
 
     juce::dsp::IIR::Filter<float> dryLowPassFilterL;
     juce::dsp::IIR::Filter<float> dryLowPassFilterR;

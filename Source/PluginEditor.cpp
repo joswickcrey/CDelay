@@ -205,7 +205,8 @@ void PanBarGraph::mouseDown(const juce::MouseEvent& e)
     if (index < activeCount)
     {
         draggedBar = index;
-        float newVal = (e.position.y / getHeight()) * 2.0f - 1.0f;
+        float labelH = 16.0f;
+        float newVal = ((e.position.y - labelH) / (getHeight() - labelH)) * 2.0f - 1.0f;
         values[draggedBar] = juce::jlimit(-1.0f, 1.0f, newVal);
         repaint();
     }
@@ -219,7 +220,8 @@ void PanBarGraph::mouseDrag(const juce::MouseEvent& e)
     int currentBar = getBarIndexAt(e.position);
     if (currentBar < activeCount)
     {
-        float newVal = (e.position.y / getHeight()) * 2.0f - 1.0f;
+        float labelH = 16.0f;
+        float newVal = ((e.position.y - labelH) / (getHeight() - labelH)) * 2.0f - 1.0f;
         values[currentBar] = juce::jlimit(-1.0f, 1.0f, newVal);
     }
     repaint();
@@ -307,40 +309,28 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
     addAndMakeVisible(volumeBarGraph);
     addAndMakeVisible(panBarGraph);
     addAndMakeVisible(feedbackBarGraph);
+    addAndMakeVisible(perTapFilterGraph);
     addAndMakeVisible(volumeTab);
     addAndMakeVisible(panTab);
     addAndMakeVisible(feedbackTab);
+    addAndMakeVisible(tapFilterTab);
 
-    volumeTab.onClick = [this]()
+    auto showOnly = [this](int tab)
     {
-        activeTab = 0;
-        volumeBarGraph.setVisible(true);
-        panBarGraph.setVisible(false);
-        feedbackBarGraph.setVisible(false);
+        activeTab = tab;
+        volumeBarGraph.setVisible   (tab == 0);
+        panBarGraph.setVisible      (tab == 1);
+        feedbackBarGraph.setVisible (tab == 2);
+        perTapFilterGraph.setVisible(tab == 3);
         updateTabAppearance();
     };
 
-    panTab.onClick = [this]()
-    {
-        activeTab = 1;
-        volumeBarGraph.setVisible(false);
-        panBarGraph.setVisible(true);
-        feedbackBarGraph.setVisible(false);
-        updateTabAppearance();
-    };
+    volumeTab.onClick    = [showOnly]() { showOnly(0); };
+    panTab.onClick       = [showOnly]() { showOnly(1); };
+    feedbackTab.onClick  = [showOnly]() { showOnly(2); };
+    tapFilterTab.onClick = [showOnly]() { showOnly(3); };
 
-    feedbackTab.onClick = [this]()
-    {
-        activeTab = 2;
-        volumeBarGraph.setVisible(false);
-        panBarGraph.setVisible(false);
-        feedbackBarGraph.setVisible(true);
-        updateTabAppearance();
-    };
-
-    panBarGraph.setVisible(false);
-    feedbackBarGraph.setVisible(false);
-    updateTabAppearance();
+    showOnly(0);
 
     setSize(730, 500);
     startTimerHz(30);
@@ -408,16 +398,18 @@ void CDelayAudioProcessorEditor::resized()
     int graphTop = topRow + knobSize + labelHeight + 70;
 
     int tabH = 24;
-    volumeTab.setBounds  (10,  graphTop, 80, tabH);
-    panTab.setBounds     (94,  graphTop, 80, tabH);
-    feedbackTab.setBounds(178, graphTop, 80, tabH);
+    volumeTab.setBounds     (10,  graphTop, 80, tabH);
+    panTab.setBounds        (94,  graphTop, 80, tabH);
+    feedbackTab.setBounds   (178, graphTop, 80, tabH);
+    tapFilterTab.setBounds  (262, graphTop, 80, tabH);
 
     int graphAreaTop = graphTop + tabH + 4;
     int graphHeight  = getHeight() - graphAreaTop - 10;
 
-    volumeBarGraph.setBounds  (10, graphAreaTop, getWidth() - 20, graphHeight);
-    panBarGraph.setBounds     (10, graphAreaTop, getWidth() - 20, graphHeight);
-    feedbackBarGraph.setBounds(10, graphAreaTop, getWidth() - 20, graphHeight);
+    volumeBarGraph.setBounds   (10, graphAreaTop, getWidth() - 20, graphHeight);
+    panBarGraph.setBounds      (10, graphAreaTop, getWidth() - 20, graphHeight);
+    feedbackBarGraph.setBounds (10, graphAreaTop, getWidth() - 20, graphHeight);
+    perTapFilterGraph.setBounds(10, graphAreaTop, getWidth() - 20, graphHeight);
 }
 
 void CDelayAudioProcessorEditor::timerCallback()
@@ -451,6 +443,16 @@ void CDelayAudioProcessorEditor::timerCallback()
         }
         feedbackBarGraph.deserialize(feedbackData);
 
+        juce::String tapFilterData;
+        for (int i = 0; i < MAX_DELAY_COUNT; ++i)
+        {
+            float graphVal = 1.0f - audioProcessor.perTapFilterValues[i] * 2.0f;
+            tapFilterData += juce::String(graphVal);
+            if (i < MAX_DELAY_COUNT - 1)
+                tapFilterData += ",";
+        }
+        perTapFilterGraph.deserialize(tapFilterData);
+
         bool initBpmSync = audioProcessor.apvts.getRawParameterValue("bpmSync")->load() > 0.5f;
         wasBpmSync = initBpmSync;
         if (initBpmSync)
@@ -473,12 +475,14 @@ void CDelayAudioProcessorEditor::timerCallback()
     volumeBarGraph.setActiveCount(count);
     panBarGraph.setActiveCount(count);
     feedbackBarGraph.setActiveCount(count);
+    perTapFilterGraph.setActiveCount(count);
 
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
     {
-        audioProcessor.barValues[i]    = volumeBarGraph.getBarValue(i);
-        audioProcessor.panValues[i]    = panBarGraph.getBarValue(i);
-        audioProcessor.feedbackValues[i] = feedbackBarGraph.getBarValue(i);
+        audioProcessor.barValues[i]          = volumeBarGraph.getBarValue(i);
+        audioProcessor.panValues[i]          = panBarGraph.getBarValue(i);
+        audioProcessor.feedbackValues[i]     = feedbackBarGraph.getBarValue(i);
+        audioProcessor.perTapFilterValues[i] = (1.0f - perTapFilterGraph.getBarValue(i)) * 0.5f;
     }
 
     for (int i = 0; i < count; ++i)
@@ -529,7 +533,8 @@ void CDelayAudioProcessorEditor::updateTabAppearance()
     auto activeColour   = juce::Colour(70, 130, 180);
     auto inactiveColour = juce::Colour(50, 50, 55);
 
-    volumeTab.setColour  (juce::TextButton::buttonColourId, activeTab == 0 ? activeColour : inactiveColour);
-    panTab.setColour     (juce::TextButton::buttonColourId, activeTab == 1 ? activeColour : inactiveColour);
-    feedbackTab.setColour(juce::TextButton::buttonColourId, activeTab == 2 ? activeColour : inactiveColour);
+    volumeTab.setColour     (juce::TextButton::buttonColourId, activeTab == 0 ? activeColour : inactiveColour);
+    panTab.setColour        (juce::TextButton::buttonColourId, activeTab == 1 ? activeColour : inactiveColour);
+    feedbackTab.setColour   (juce::TextButton::buttonColourId, activeTab == 2 ? activeColour : inactiveColour);
+    tapFilterTab.setColour  (juce::TextButton::buttonColourId, activeTab == 3 ? activeColour : inactiveColour);
 }
