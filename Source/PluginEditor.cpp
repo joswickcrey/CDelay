@@ -38,25 +38,24 @@ void VolumeBarGraph::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0, 60, 0));
     g.drawRect(getLocalBounds(), 1);
 
-    float labelH = 0.0f;
-    float barArea = getHeight() - labelH;
+    float barArea = (float)getHeight();
     float barWidth = (float)getWidth() / MAX_DELAY_COUNT;
 
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
     {
         float x = i * barWidth;
         float barH = barArea * values[i];
-        float y = labelH + (barArea - barH);
+        float y = barArea - barH;
         bool  isActive = i < activeCount;
 
         g.setColour(isActive ? juce::Colour(0, 15, 0) : juce::Colour(0, 5, 0));
-        g.fillRect(x + 1, labelH, barWidth - 2, barArea);
+        g.fillRect(x + 1, 0.0f, barWidth - 2, barArea);
 
         g.setColour(isActive ? juce::Colour(50, 205, 50) : juce::Colour(20, 50, 20));
         g.fillRect(x + 1, y, barWidth - 2, barH);
 
         g.setColour(juce::Colour(0, 30, 0));
-        g.drawLine(x, labelH, x, (float)getHeight(), 1.0f);
+        g.drawLine(x, 0.0f, x, (float)getHeight(), 1.0f);
     }
 }
 
@@ -80,8 +79,7 @@ void VolumeBarGraph::mouseDown(const juce::MouseEvent& e)
     if (index < activeCount)
     {
         draggedBar = index;
-        float labelH = 0.0f;
-        float newVal = 1.0f - ((e.position.y - labelH) / (getHeight() - labelH));
+        float newVal = 1.0f - (e.position.y / (float)getHeight());
         values[draggedBar] = juce::jlimit(0.0f, 1.0f, newVal);
         if (onBarChanged) onBarChanged();
         repaint();
@@ -96,8 +94,7 @@ void VolumeBarGraph::mouseDrag(const juce::MouseEvent& e)
     int currentBar = getBarIndexAt(e.position);
     if (currentBar < activeCount)
     {
-        float labelH = 0.0f;
-        float newVal = 1.0f - ((e.position.y - labelH) / (getHeight() - labelH));
+        float newVal = 1.0f - (e.position.y / (float)getHeight());
         values[currentBar] = juce::jlimit(0.0f, 1.0f, newVal);
         if (onBarChanged) onBarChanged();
     }
@@ -107,6 +104,16 @@ void VolumeBarGraph::mouseDrag(const juce::MouseEvent& e)
 void VolumeBarGraph::mouseUp(const juce::MouseEvent&)
 {
     draggedBar = -1;
+}
+
+void VolumeBarGraph::mouseDoubleClick(const juce::MouseEvent& e)
+{
+    int index = getBarIndexAt(e.position);
+    if (index < activeCount)
+    {
+        values[index] = defaultVal;
+        repaint();
+    }
 }
 
 juce::String VolumeBarGraph::serialize() const
@@ -169,10 +176,9 @@ void PanBarGraph::paint(juce::Graphics& g)
     g.setColour(juce::Colour(0, 60, 0));
     g.drawRect(getLocalBounds(), 1);
 
-    float labelH = 0.0f;
-    float barArea = getHeight() - labelH;
+    float barArea = (float)getHeight();
     float barWidth = (float)getWidth() / MAX_DELAY_COUNT;
-    float centerY = labelH + barArea / 2.0f;
+    float centerY = barArea / 2.0f;
 
     for (int i = 0; i < MAX_DELAY_COUNT; ++i)
     {
@@ -181,7 +187,7 @@ void PanBarGraph::paint(juce::Graphics& g)
         float val = values[i];
 
         g.setColour(isActive ? juce::Colour(0, 15, 0) : juce::Colour(0, 5, 0));
-        g.fillRect(x + 1, labelH, barWidth - 2, barArea);
+        g.fillRect(x + 1, 0.0f, barWidth - 2, barArea);
 
         g.setColour(juce::Colour(0, 40, 0));
         g.drawLine(x + 1, centerY, x + barWidth - 1, centerY, 1.0f);
@@ -193,7 +199,7 @@ void PanBarGraph::paint(juce::Graphics& g)
         g.fillRect(x + 1, fillY, barWidth - 2, fillH);
 
         g.setColour(juce::Colour(0, 30, 0));
-        g.drawLine(x, labelH, x, (float)getHeight(), 1.0f);
+        g.drawLine(x, 0.0f, x, (float)getHeight(), 1.0f);
     }
 }
 
@@ -217,8 +223,7 @@ void PanBarGraph::mouseDown(const juce::MouseEvent& e)
     if (index < activeCount)
     {
         draggedBar = index;
-        float labelH = 0.0f;
-        float newVal = ((e.position.y - labelH) / (getHeight() - labelH)) * 2.0f - 1.0f;
+        float newVal = (e.position.y / (float)getHeight()) * 2.0f - 1.0f;
         values[draggedBar] = juce::jlimit(-1.0f, 1.0f, newVal);
         repaint();
     }
@@ -232,8 +237,7 @@ void PanBarGraph::mouseDrag(const juce::MouseEvent& e)
     int currentBar = getBarIndexAt(e.position);
     if (currentBar < activeCount)
     {
-        float labelH = 0.0f;
-        float newVal = ((e.position.y - labelH) / (getHeight() - labelH)) * 2.0f - 1.0f;
+        float newVal = (e.position.y / (float)getHeight()) * 2.0f - 1.0f;
         values[currentBar] = juce::jlimit(-1.0f, 1.0f, newVal);
     }
     repaint();
@@ -242,6 +246,16 @@ void PanBarGraph::mouseDrag(const juce::MouseEvent& e)
 void PanBarGraph::mouseUp(const juce::MouseEvent&)
 {
     draggedBar = -1;
+}
+
+void PanBarGraph::mouseDoubleClick(const juce::MouseEvent& e)
+{
+    int index = getBarIndexAt(e.position);
+    if (index < activeCount)
+    {
+        values[index] = defaultVal;
+        repaint();
+    }
 }
 
 juce::String PanBarGraph::serialize() const
@@ -316,6 +330,7 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
         audioProcessor.apvts, "filterDelaysOnly", filterDelaysOnlyButton);
 
     feedbackBarGraph.setLabel("Feedback");
+    feedbackBarGraph.setDefaultValue(0.0f);
     widthBarGraph.setLabel   ("Width");
 
     addAndMakeVisible(noteDivisionLabel);
@@ -519,7 +534,9 @@ void CDelayAudioProcessorEditor::resized()
             int cx = gx + (int)(i * colW);
             int cw = (int)colW;
             fbTimingKnobs[i]->setBounds      (cx + 1, knobTop,   cw - 2, 42);
-            fbTimingSyncToggles[i]->setBounds (cx + 1, toggleTop, cw - 2, 20);
+            int toggleW = 20;
+            int toggleX = cx + (cw - toggleW) / 2;
+            fbTimingSyncToggles[i]->setBounds (toggleX, toggleTop, toggleW, 20);
         }
     }
 }

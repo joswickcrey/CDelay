@@ -21,11 +21,13 @@ public:
     void mouseDown(const juce::MouseEvent& e) override;
     void mouseDrag(const juce::MouseEvent& e) override;
     void mouseUp(const juce::MouseEvent& e) override;
+    void mouseDoubleClick(const juce::MouseEvent& e) override;
 
     void setActiveCount(int count);
     float getBarValue(int index) const;
     void setLabel(const juce::String& text);
     void resetAll(float value);
+    void setDefaultValue(float val) { defaultVal = val; }
 
     juce::String serialize() const;
     void deserialize(const juce::String& data);
@@ -37,6 +39,7 @@ private:
     int activeCount = 4;
     int draggedBar = -1;
     juce::String label = "Volume";
+    float defaultVal = 0.5f;
 
     int getBarIndexAt(juce::Point<float> pos) const;
 
@@ -55,11 +58,13 @@ public:
     void mouseDown(const juce::MouseEvent& e) override;
     void mouseDrag(const juce::MouseEvent& e) override;
     void mouseUp(const juce::MouseEvent& e) override;
+    void mouseDoubleClick(const juce::MouseEvent& e) override;
 
     void setActiveCount(int count);
     float getBarValue(int index) const;
     void setLabel(const juce::String& text);
     void resetAll(float value);
+    void setDefaultValue(float val) { defaultVal = val; }
 
     juce::String serialize() const;
     void deserialize(const juce::String& data);
@@ -69,6 +74,7 @@ private:
     int activeCount = 4;
     int draggedBar = -1;
     juce::String label = "Pan";
+    float defaultVal = 0.0f;
 
     int getBarIndexAt(juce::Point<float> pos) const;
 
