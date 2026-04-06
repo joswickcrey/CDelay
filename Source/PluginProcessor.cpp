@@ -126,7 +126,8 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
     delayCount = (int)apvts.getRawParameterValue("delayCount")->load();
     float delayTimeMs = apvts.getRawParameterValue("delayTime")->load();
-    float sendAmount = apvts.getRawParameterValue("send")->load();
+    float sendAmount  = apvts.getRawParameterValue("send")->load();
+    float swingAmount = apvts.getRawParameterValue("swing")->load();
 
     inputVolumeSmoothed.setTargetValue(apvts.getRawParameterValue("inputVolume")->load());
     dryWetSmoothed.setTargetValue(apvts.getRawParameterValue("dryWet")->load());
@@ -175,6 +176,7 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
         float dryGain = juce::jlimit(0.0f, 1.0f, 2.0f * (1.0f - smoothedDryWet));
         int smoothedDelaySamples = (int)delayTimeSmoothed.getNextValue();
+        int swingOffsetSamples   = (int)(swingAmount * (float)smoothedDelaySamples * 0.5f);
 
         for (int channel = 0; channel < numChannels; ++channel)
         {
@@ -184,6 +186,8 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             for (int repeat = 1; repeat <= delayCount; ++repeat)
             {
                 int fbReadPos = writePosition - (repeat * smoothedDelaySamples);
+                if (repeat % 2 == 0)
+                    fbReadPos -= swingOffsetSamples;
                 if (bufferSize > 0)
                     fbReadPos = ((fbReadPos % bufferSize) + bufferSize) % bufferSize;
                 feedbackSample += delayBuffer.getSample(channel, fbReadPos)
@@ -196,6 +200,8 @@ void CDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
             for (int repeat = 1; repeat <= delayCount; ++repeat)
             {
                 int readPosition = writePosition - (repeat * smoothedDelaySamples);
+                if (repeat % 2 == 0)
+                    readPosition -= swingOffsetSamples;
 
                 if (bufferSize > 0)
                     readPosition = ((readPosition % bufferSize) + bufferSize) % bufferSize;
@@ -434,6 +440,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout CDelayAudioProcessor::create
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "send", "Send", 0.0f, 1.0f, 1.0f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "swing", "Swing", 0.0f, 1.0f, 0.0f));
 
     return { params.begin(), params.end() };
 }

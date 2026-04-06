@@ -277,7 +277,8 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
     setupKnob(dryWetSlider, dryWetLabel, "Dry/Wet");
     setupKnob(outputVolumeSlider, outputVolumeLabel, "Output Vol");
     setupKnob(filterSlider, filterLabel, "Filter");
-    setupKnob(sendSlider, sendLabel, "Send");
+    setupKnob(sendSlider,  sendLabel,  "Send");
+    setupKnob(swingSlider, swingLabel, "Swing");
 
     delayCountSlider.setRange(1, MAX_DELAY_COUNT, 1);
 
@@ -287,7 +288,8 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
     dryWetAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "dryWet", dryWetSlider);
     outputVolumeAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "outputVolume", outputVolumeSlider);
     filterAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "filterCutoff", filterSlider);
-    sendAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "send", sendSlider);
+    sendAttachment  = std::make_unique<SliderAttachment>(audioProcessor.apvts, "send",  sendSlider);
+    swingAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "swing", swingSlider);
 
     bpmSyncButton.setButtonText("BPM Sync");
     addAndMakeVisible(bpmSyncButton);
@@ -340,7 +342,7 @@ CDelayAudioProcessorEditor::CDelayAudioProcessorEditor(CDelayAudioProcessor& p)
     feedbackBarGraph.setVisible(false);
     updateTabAppearance();
 
-    setSize(650, 500);
+    setSize(730, 500);
     startTimerHz(30);
 
     stateLoaded = false;
@@ -397,8 +399,11 @@ void CDelayAudioProcessorEditor::resized()
 
     filterDelaysOnlyButton.setBounds(460, topRow + knobSize + labelHeight + 5, 90, 20);
 
-    sendSlider.setBounds(550, topRow, knobSize, knobSize);
-    sendLabel.setBounds(550, topRow + knobSize, knobSize, labelHeight);
+    sendSlider.setBounds (550, topRow, knobSize, knobSize);
+    sendLabel.setBounds  (550, topRow + knobSize, knobSize, labelHeight);
+
+    swingSlider.setBounds(640, topRow, knobSize, knobSize);
+    swingLabel.setBounds (640, topRow + knobSize, knobSize, labelHeight);
 
     int graphTop = topRow + knobSize + labelHeight + 70;
 

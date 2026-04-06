@@ -126,6 +126,10 @@ private:
     juce::Label  sendLabel;
     std::unique_ptr<SliderAttachment> sendAttachment;
 
+    juce::Slider swingSlider;
+    juce::Label  swingLabel;
+    std::unique_ptr<SliderAttachment> swingAttachment;
+
     bool wasBpmSync = false;
 
     juce::TextButton volumeTab   { "Volume" };
